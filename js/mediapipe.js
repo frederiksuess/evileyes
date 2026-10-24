@@ -1,6 +1,22 @@
 // Googles MediaPipe wird erst geladen, wenn es gebraucht wird (Kamera an).
 // Versionen sind fest gepinnt; der Service Worker hält die Dateien danach offline vor.
 import { video, bildBereit } from './kamera.js';
+import { bewegung } from './bewegung.js';
+import { S } from './einstellungen.js';
+
+// Restlichtverstärker für die KI-Erkennung: im Dunkeln wird ein aufgehelltes,
+// kontrastverstärktes Bild statt des Rohvideos übergeben.
+const hell = document.createElement('canvas');
+const hctx = hell.getContext('2d');
+const filterGeht = 'filter' in hctx;
+function eingangsbild() {
+  const v = bewegung.verstaerkung;
+  if (!S.nachtsicht || !filterGeht || v < 1.3 || !video.videoWidth) return video;
+  if (hell.width !== video.videoWidth) { hell.width = video.videoWidth; hell.height = video.videoHeight; }
+  hctx.filter = `brightness(${v.toFixed(2)}) contrast(1.2)`;
+  hctx.drawImage(video, 0, 0);
+  return hell;
+}
 
 const VERSION = '0.10.21';
 const BASIS = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${VERSION}`;
@@ -49,7 +65,7 @@ export async function gestenStarten(darf, beiPeace) {
     const schleife = () => {
       try {
         if (bildBereit() && darf()) {
-          const r = erkenner.recognizeForVideo(video, ts());
+          const r = erkenner.recognizeForVideo(eingangsbild(), ts());
           const peace = (r.gestures || []).some(g => g[0]?.categoryName === 'Victory' && g[0].score > 0.6);
           zaehler = peace ? zaehler + 1 : Math.max(0, zaehler - 1);
           if (zaehler >= 3) { zaehler = 0; beiPeace(); }
@@ -74,7 +90,7 @@ export async function poseErzeugen(anzahl) {
   });
   const ts = zeitstempel();
   return {
-    erkennen: () => lm.detectForVideo(video, ts()).landmarks || [],
+    erkennen: () => lm.detectForVideo(eingangsbild(), ts()).landmarks || [],
     anzahlSetzen: n => lm.setOptions({ numPoses: n }).catch(() => {})
   };
 }

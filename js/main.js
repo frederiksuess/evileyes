@@ -1,14 +1,20 @@
-// Einstieg: verbindet Kamera, Erkennung, Szenen, Spiel und Bedienung.
+// Einstieg: verbindet Kamera, Erkennung, Szenen, Portal, Spiel und Bedienung.
 import { S, speichern, MOTIV_IDS } from './einstellungen.js';
-import { kamera, kameraStarten } from './kamera.js';
+import { kamera, kameraStarten, kameraListe, wennKameraLaeuft } from './kamera.js';
 import { bewegung, bewegungStarten, neuLernen, empfindlichkeitSetzen, aktiveSpuren } from './bewegung.js';
 import { fokusWaehlen, wennJemandAuftaucht } from './aufmerksamkeit.js';
 import { gestenStarten } from './mediapipe.js';
+import { winkenErkennen } from './winken.js';
 import { klangFreischalten } from './audio.js';
 import { zeige, verstecke } from './hinweis.js';
 import { glatt, klemm } from './util.js';
-import { ui, uiEinrichten, leisteZeigen, ansichtAnzeigen } from './ui.js';
+import {
+  ui, uiEinrichten, leisteZeigen, ansichtAnzeigen, kameraWahlFuellen,
+  handyDialogZeigen, handyDialogSchliessen, handyStatus
+} from './ui.js';
 import { vorschau } from './vorschau.js';
+import { portal, rahmen, innen, portalZeichnen } from './portal.js';
+import { fern, empfaengerStarten, senderAdresse, qrSvg, STATUS_TEXT } from './fernkamera.js';
 import { spiel, spielAktiv, spielVorbereiten, spielSchritt, spinneImBlick } from './spiel/spinnenjagd.js';
 import { AugenSzene } from './szenen/augen.js';
 import { SkelettSzene } from './szenen/skelett.js';
@@ -26,7 +32,6 @@ async function szenenAnlegen() {
   for (const d of daten) szenen[d.id] = new AugenSzene(d);
   szenen.skelett = new SkelettSzene();
   szenen.vogelspinne = new VogelspinneSzene();
-  // Augenbilder vorladen (klein), damit der Wechsel sofort geht
   await Promise.all(Object.values(szenen).map(s => s.laden()));
 }
 
@@ -39,7 +44,7 @@ function motivWaehlen(id) {
   ansichtAnzeigen(szene.hatHoehe !== false);
   document.getElementById('bBlinzeln').hidden = !szene.blinzeln;
   if (ui.gestartet && !kamera.laeuft && id === 'skelett') zeige('Das Skelett folgt dir, sobald die Kamera läuft.', 3500);
-  if (ui.gestartet && !kamera.laeuft && id === 'vogelspinne') zeige('Zieh den Finger über den Bildschirm – die Spinne jagt ihn.', 3500);
+  if (ui.gestartet && !kamera.laeuft && id === 'vogelspinne') zeige('Leg den Finger auf den Bildschirm – die Spinne jagt ihn.', 3500);
   speichern();
 }
 
@@ -49,9 +54,16 @@ function groesse() {
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   buehne.width = Math.round(innerWidth * dpr);
   buehne.height = Math.round(innerHeight * dpr);
+  portal.version++;
 }
 addEventListener('resize', groesse);
 groesse();
+
+/** Bühnen-Gerätepixel -> Koordinaten innerhalb des Portal-Ausschnitts */
+function zuSzene(x, y) {
+  const r = rahmen();
+  return [x - r.x, y - r.y];
+}
 
 // ---------------- Hauptschleife ----------------
 let naehe = 0, aktivitaet = 0, tAlt = performance.now();
@@ -60,10 +72,11 @@ vorschau.naehe = () => naehe;
 function schleife(t) {
   const dt = Math.min(0.1, (t - tAlt) / 1000);
   tAlt = t;
-  const W = buehne.width, H = buehne.height;
+  const r = rahmen();
+  const W = r.w, H = r.h;
   const imSpiel = spielAktiv();
 
-  // Wohin soll die Kreatur schauen / laufen?
+  // Wohin soll die Kreatur schauen / laufen? (Koordinaten im Portal-Ausschnitt)
   let ziel = null, zielQuelle = null, zielNaehe = 0;
   const spielZiel = imSpiel ? spinneImBlick() : null;
   if (spielZiel) { ziel = spielZiel; zielQuelle = 'spiel'; zielNaehe = 0.15; }
@@ -80,40 +93,98 @@ function schleife(t) {
   naehe = glatt(naehe, zielNaehe, dt, zielNaehe > naehe ? 0.7 : 1.4);
   aktivitaet = glatt(aktivitaet, ui.finger ? 0.4 : Math.min(1, bewegung.gesamt * 5), dt, 0.6);
 
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, buehne.width, buehne.height);
+  ctx.save();
+  ctx.translate(r.x, r.y);
+  ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
   szene.zeichne(ctx, t, dt, {
     W, H, ziel, zielQuelle, naehe, aktivitaet, imSpiel,
-    viele: aktiveSpuren(t).length >= 3
+    viele: aktiveSpuren(t).length >= 3,
+    innen: (x, y) => innen(x + r.x, y + r.y),
+    portalVersion: portal.version
   });
   if (imSpiel) spielSchritt(ctx, t, dt, W, H, szene);
+  ctx.restore();
+  portalZeichnen(ctx, t);
   requestAnimationFrame(schleife);
 }
 
+// ---------------- Kamera ----------------
+let erkennungLaeuft = false;
+wennKameraLaeuft(() => {
+  neuLernen();
+  if (!erkennungLaeuft) {
+    erkennungLaeuft = true;
+    bewegungStarten();
+    const darf = art => () => !spielAktiv() && performance.now() > spiel.sperreBis && !portal.bearbeiten &&
+      (S.ausloeser === art || S.ausloeser === 'beide');
+    gestenStarten(darf('peace'), spielVorbereiten);
+    winkenErkennen(darf('winken'), spielVorbereiten);
+  }
+  for (const s of Object.values(szenen)) s.kameraGestartet?.();
+  kameraWahlFuellen(kameraListe);
+});
+
+async function kameraWechseln(deviceId) {
+  try {
+    await kameraStarten(deviceId || undefined);
+    zeige('Kamera gewechselt. Kurz stillhalten …', 2500);
+  } catch (e) {
+    zeige(e?.name === 'NotAllowedError' ? 'Kamerazugriff wurde verweigert.' : 'Diese Kamera ist nicht verfügbar.', 4000);
+  }
+}
+
+let handyBeobachter = false;
+async function handyVerbinden() {
+  if (!handyBeobachter) {
+    handyBeobachter = true;
+    fern.bei.add(st => {
+      handyStatus(STATUS_TEXT[st] || '', st === 'verbunden');
+      if (st === 'verbunden') { setTimeout(handyDialogSchliessen, 1200); zeige('Handy verbunden – kurz stillhalten …', 3000); }
+      if (st === 'getrennt' && document.getElementById('handyDialog').hidden) zeige(STATUS_TEXT.getrennt, 4000);
+    });
+  }
+  await empfaengerStarten();
+  const adresse = senderAdresse();
+  handyDialogZeigen(adresse, qrSvg(adresse));
+  handyStatus(STATUS_TEXT[fern.status] || '', fern.status === 'verbunden');
+}
+
 // ---------------- Start ----------------
-async function starten(mitKamera) {
+async function starten(art, automatisch = false) {
   klangFreischalten();
   wachHalten();
-  if (!mitKamera) {
-    zeige('Zieh den Finger über den Bildschirm. Zwei Finger zoomen, doppelt tippen blinzelt.', 5000);
+  S.quelle = art; speichern();
+  if (art === 'keine') {
+    zeige('Mit dem Finger steuern. Zwei Finger zoomen, P passt das Portal an.', 5000);
+    return;
+  }
+  if (art === 'handy') {
+    if (!automatisch) { await handyVerbinden(); return; }
+    // Autostart: still auf das Handy warten; nur wenn es nicht kommt, den QR-Code zeigen
+    await empfaengerStarten();
+    setTimeout(() => { if (fern.status !== 'verbunden') handyVerbinden(); }, 20000);
     return;
   }
   try {
     await kameraStarten();
-    bewegungStarten();
-    zeige('Kurz stillhalten – der Hintergrund wird gelernt. Antippen öffnet die Einstellungen.', 5000);
-    szene.kameraGestartet?.();
-    for (const s of Object.values(szenen)) if (s !== szene) s.kameraGestartet?.();
-    gestenStarten(() => !spielAktiv() && performance.now() > spiel.sperreBis, spielVorbereiten);
+    zeige('Kurz stillhalten – der Hintergrund wird gelernt. Antippen oder Leertaste öffnet die Einstellungen.', 5000);
   } catch (e) {
     const grund = e?.name === 'NotAllowedError' ? 'Kamerazugriff wurde verweigert.' : 'Die Kamera ist hier nicht erreichbar.';
     zeige(`${grund} Steuerung jetzt per Finger.`, 6000);
   }
 }
 
-// Bildschirm wach halten (wichtig, wenn das Handy als Deko aufgestellt ist)
+// Bildschirm wach halten (wichtig für eine Dauer-Deko)
 let sperre = null;
 async function wachHalten() {
-  try { if ('wakeLock' in navigator && !sperre) { sperre = await navigator.wakeLock.request('screen'); sperre.addEventListener('release', () => { sperre = null; }); } }
-  catch { /* nicht unterstützt */ }
+  try {
+    if ('wakeLock' in navigator && !sperre) {
+      sperre = await navigator.wakeLock.request('screen');
+      sperre.addEventListener('release', () => { sperre = null; });
+    }
+  } catch { /* nicht unterstützt */ }
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && ui.gestartet) wachHalten(); });
 
@@ -142,15 +213,23 @@ async function init() {
     neuLernen,
     empfindlichkeit: empfindlichkeitSetzen,
     mehrereGeaendert: () => szenen.skelett.mehrereGeaendert(),
-    spielStarten: spielVorbereiten
+    spielStarten: spielVorbereiten,
+    kameraWechseln,
+    handyVerbinden,
+    zuSzene,
+    szene: () => szene
   });
   requestAnimationFrame(schleife);
+  // Dauerbetrieb: mit ?auto in der Adresse ohne Startbildschirm loslegen (zuletzt genutzte Quelle)
+  if (new URLSearchParams(location.search).has('auto')) ui.automatischStarten(S.quelle);
 }
 
 init();
 
 // Zum Ausprobieren in der Konsole: Seite mit ?debug öffnen
-if (new URLSearchParams(location.search).has('debug')) window.feueraugen = { szenen, S, spiel, bewegung, get szene() { return szene; } };
+if (new URLSearchParams(location.search).has('debug')) {
+  window.feueraugen = { szenen, S, spiel, bewegung, portal, fern, get szene() { return szene; } };
+}
 
 // Offline-Fähigkeit (GitHub Pages liefert HTTPS, damit sind Service Worker erlaubt)
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

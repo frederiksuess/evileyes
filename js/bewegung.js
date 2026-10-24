@@ -1,8 +1,11 @@
 // Bewegungserkennung auf einem kleinen Raster (96 x 72).
 //  - Hintergrundmodell: was ist neu im Bild? -> Personen (Klumpen) und deren Spuren
-//  - Bild-zu-Bild-Differenz: was bewegt sich gerade schnell? -> Patschen im Spiel
+//  - Bild-zu-Bild-Differenz: was bewegt sich gerade schnell? -> Patschen im Spiel, Winken
+//  - Restlichtverstärker: dunkle Bilder werden aufgehellt, zeitlich geglättet, und die
+//    Schwellen passen sich dem Bildrauschen an (sonst hält die Erkennung Rauschen für Bewegung)
 import { video, bildBereit } from './kamera.js';
 import { S } from './einstellungen.js';
+import { klemm } from './util.js';
 
 export const PW = 96, PH = 72, N = PW * PH;
 
@@ -14,6 +17,8 @@ export const aktuell = new Float32Array(N);   // Graustufen
 export const sauber = new Uint8Array(N);      // bereinigte Bewegungsmaske
 export const schnell = new Uint8Array(N);     // schnelle Bewegung seit dem letzten Bild
 const hg = new Float32Array(N);
+const roh = new Float32Array(N);
+const histo = new Uint32Array(256);
 const vorher = new Float32Array(N);
 const bewegt = new Uint8Array(N);
 const tmp = new Uint8Array(N);
@@ -25,6 +30,9 @@ let hgBereit = false, vorherBereit = false, lernen = 0;
 
 export const bewegung = {
   gesamt: 0,           // Anteil bewegter Fläche (0..1)
+  helligkeit: 1,       // mittlere Helligkeit des Kamerabilds (0..1)
+  verstaerkung: 1,     // aktuelle Aufhellung durch den Restlichtverstärker
+  rauschen: 0,         // geschätztes Bildrauschen (Graustufen)
   spuren: [],          // erkannte Personen über die Zeit
   schwelle: 26,
   takt: 66,            // ms zwischen zwei Analysen
@@ -115,15 +123,40 @@ function findeKlumpen() {
 function analysieren() {
   pctx.drawImage(video, 0, 0, PW, PH);
   const d = pctx.getImageData(0, 0, PW, PH).data;
-  for (let i = 0, p = 0; i < N; i++, p += 4)
-    aktuell[i] = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114;
+  let summe = 0;
+  for (let i = 0, p = 0; i < N; i++, p += 4) {
+    roh[i] = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114;
+    summe += roh[i];
+  }
+  const mittel = summe / N;
+  bewegung.helligkeit = mittel / 255;
+
+  // Restlichtverstärker: auf mittlere Helligkeit ~110 bringen (max. 5-fach), träge nachgeführt
+  const ziel = S.nachtsicht ? klemm(110 / Math.max(mittel, 1), 1, 5) : 1;
+  bewegung.verstaerkung += (ziel - bewegung.verstaerkung) * 0.1;
+  const v = bewegung.verstaerkung;
+  const glaetten = vorherBereit && v > 1.5;            // im Dunkeln Rauschen zeitlich mitteln
+  for (let i = 0; i < N; i++) {
+    const wert = Math.min(255, roh[i] * v);
+    aktuell[i] = glaetten ? (aktuell[i] + wert) * 0.5 : wert;
+  }
 
   if (!hgBereit) { hg.set(aktuell); hgBereit = true; lernen = 12; }
+
+  // Rauschen schätzen: Median der Bild-zu-Bild-Differenz
+  if (vorherBereit) {
+    histo.fill(0);
+    for (let i = 0; i < N; i++) histo[Math.min(255, Math.abs(aktuell[i] - vorher[i]) | 0)]++;
+    let n = 0, med = 0;
+    while (med < 255 && (n += histo[med]) < N / 2) med++;
+    bewegung.rauschen += (med - bewegung.rauschen) * 0.1;
+  }
+  const schnellSchwelle = Math.max(22, bewegung.rauschen * 4);
 
   // schnelle Bewegung
   let nSchnell = 0;
   for (let i = 0; i < N; i++) {
-    const b = vorherBereit && Math.abs(aktuell[i] - vorher[i]) > 22 ? 1 : 0;
+    const b = vorherBereit && Math.abs(aktuell[i] - vorher[i]) > schnellSchwelle ? 1 : 0;
     schnell[i] = b; nSchnell += b;
   }
   if (nSchnell > N * 0.6) schnell.fill(0);       // Kamera gewackelt / Licht
@@ -131,16 +164,16 @@ function analysieren() {
   vorherBereit = true;
 
   // Hintergrundmodell
-  let roh = 0;
-  const thr = bewegung.schwelle;
+  let anzahl = 0;
+  const thr = Math.max(bewegung.schwelle, bewegung.rauschen * 3.5);
   for (let i = 0; i < N; i++) {
     const b = Math.abs(aktuell[i] - hg[i]) > thr ? 1 : 0;
-    bewegt[i] = b; roh += b;
+    bewegt[i] = b; anzahl += b;
   }
   sauber.fill(0);
   const jetzt = performance.now();
 
-  if (lernen > 0 || roh > N * 0.55) {
+  if (lernen > 0 || anzahl > N * 0.55) {
     // Lernphase oder Licht/Handy hat sich geändert: Hintergrund neu übernehmen
     if (lernen > 0) lernen--;
     hg.set(aktuell);

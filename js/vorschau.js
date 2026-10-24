@@ -31,5 +31,7 @@ bewegung.beiAnalyse.add(jetzt => {
     g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
   }
   const n = aktiv.length;
-  info.textContent = `${n === 0 ? 'Niemand erkannt' : n === 1 ? '1 Person' : n + ' Personen'} · Nähe ${Math.round(vorschau.naehe() * 100)} %`;
+  const licht = `Licht ${Math.round(bewegung.helligkeit * 100)} %` +
+    (bewegung.verstaerkung > 1.2 ? ` · ${bewegung.verstaerkung.toFixed(1).replace('.', ',')}× aufgehellt` : '');
+  info.textContent = `${n === 0 ? 'Niemand erkannt' : n === 1 ? '1 Person' : n + ' Personen'} · Nähe ${Math.round(vorschau.naehe() * 100)} % · ${licht}`;
 });
