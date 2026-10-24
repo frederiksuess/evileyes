@@ -8,7 +8,8 @@ const cv = document.getElementById('vorschau');
 const g = cv.getContext('2d');
 const bild = g.createImageData(PW, PH);
 
-export const vorschau = { an: false, naehe: () => 0 };
+export const vorschau = { an: false, dialog: false, naehe: () => 0 };
+const abBild = document.getElementById('abBild').getContext('2d');
 
 export function vorschauSchalten(an) {
   vorschau.an = an;
@@ -16,13 +17,14 @@ export function vorschauSchalten(an) {
 }
 
 bewegung.beiAnalyse.add(jetzt => {
-  if (!vorschau.an) return;
+  if (!vorschau.an && !vorschau.dialog) return;
   const o = bild.data;
   for (let i = 0, p = 0; i < N; i++, p += 4) {
     const v = aktuell[i] * 0.8;
     o[p] = sauber[i] ? 255 : v; o[p + 1] = sauber[i] ? 120 : v; o[p + 2] = sauber[i] ? 20 : v; o[p + 3] = 255;
   }
   g.putImageData(bild, 0, 0);
+  if (vorschau.dialog) abBild.putImageData(bild, 0, 0);
   const aktiv = aktiveSpuren(jetzt);
   g.lineWidth = 1;
   for (const sp of aktiv) {

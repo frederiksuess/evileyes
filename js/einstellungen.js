@@ -25,6 +25,7 @@ const STANDARD = {
   ausloeser: 'beide',        // wie die Spinnenjagd startet
   kameraId: '',              // gewählte Kamera dieses Geräts
   quelle: 'lokal',           // zuletzt genutzt: lokal | handy | keine (für den Autostart)
+  ignorieren: [],            // Bereiche im Kamerabild ohne Erkennung: [x0, y0, x1, y1] (0..1)
   peerId: '',                // feste Kennung für die Handy-Kamera
   portal: { an: false, punkte: portalOval(), weich: 0.03, glut: false },
   ansicht: Object.fromEntries(MOTIV_IDS.map(id => [id, { zoom: 1, hoehe: 0 }]))
@@ -42,6 +43,9 @@ function pruefen(roh) {
   if (AUSLOESER.includes(roh.ausloeser)) s.ausloeser = roh.ausloeser;
   if (typeof roh.kameraId === 'string') s.kameraId = roh.kameraId.slice(0, 200);
   if (['lokal', 'handy', 'keine'].includes(roh.quelle)) s.quelle = roh.quelle;
+  if (Array.isArray(roh.ignorieren)) s.ignorieren = roh.ignorieren
+    .filter(r => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).slice(0, 12)
+    .map(r => r.map(v => klemm(v, 0, 1)));
   if (typeof roh.peerId === 'string' && /^[a-z0-9-]{8,40}$/.test(roh.peerId)) s.peerId = roh.peerId;
   const p = roh.portal;
   if (p && typeof p === 'object') {

@@ -16,6 +16,9 @@ const pctx = proc.getContext('2d', { willReadFrequently: true });
 export const aktuell = new Float32Array(N);   // Graustufen
 export const sauber = new Uint8Array(N);      // bereinigte Bewegungsmaske
 export const schnell = new Uint8Array(N);     // schnelle Bewegung seit dem letzten Bild
+const regung = new Uint8Array(N);             // feine Bewegung (Atmen, Wippen) – unterscheidet Menschen von „Geistern“
+const regungNah = new Uint8Array(N);          // … in der Nähe (Radius 4)
+const ruhig = new Uint16Array(N);             // Bilder in Folge ohne Regung in der Nähe
 const hg = new Float32Array(N);
 const roh = new Float32Array(N);
 const histo = new Uint32Array(256);
@@ -27,6 +30,21 @@ const label = new Int32Array(N);
 const stapel = new Int32Array(N);
 
 let hgBereit = false, vorherBereit = false, lernen = 0;
+
+// Ausgeblendete Bereiche (z. B. die Leinwand selbst, ein Fenster, ein Fernseher)
+const ignor = new Uint8Array(N);
+let ignorSchluessel = '';
+function ignorAktualisieren() {
+  const s = JSON.stringify(S.ignorieren);
+  if (s === ignorSchluessel) return;
+  ignorSchluessel = s;
+  ignor.fill(0);
+  for (const [a, b, c, d] of S.ignorieren) {
+    const x0 = Math.floor(Math.min(a, c) * PW), x1 = Math.ceil(Math.max(a, c) * PW);
+    const y0 = Math.floor(Math.min(b, d) * PH), y1 = Math.ceil(Math.max(b, d) * PH);
+    for (let y = Math.max(0, y0); y < Math.min(PH, y1); y++) for (let x = Math.max(0, x0); x < Math.min(PW, x1); x++) ignor[y * PW + x] = 1;
+  }
+}
 
 export const bewegung = {
   gesamt: 0,           // Anteil bewegter Fläche (0..1)
@@ -55,8 +73,9 @@ function spurenAktualisieren(klumpen, jetzt) {
     });
     if (best < 0) continue;
     const b = frei.splice(best, 1)[0];
-    sp.x += (b.x - sp.x) * 0.35;
-    sp.y += (b.y - sp.y) * 0.35;
+    sp.x += (b.x - sp.x) * 0.55;
+    sp.y += (b.y - sp.y) * 0.55;
+    if (b.aktiv >= 3) sp.zuletztAktiv = jetzt;
     sp.w += (b.w - sp.w) * 0.2;
     sp.flaeche += (b.flaeche - sp.flaeche) * 0.3;
     sp.box = b.box;
@@ -65,9 +84,38 @@ function spurenAktualisieren(klumpen, jetzt) {
   }
   for (const b of frei) {
     spuren.push({ id: naechsteId++, x: b.x, y: b.y, w: b.w, flaeche: b.flaeche, box: b.box,
-                  erst: jetzt, zuletzt: jetzt, treffer: 1, gesehen: false });
+                  erst: jetzt, zuletzt: jetzt, zuletztAktiv: b.aktiv >= 3 ? jetzt : -1e9, treffer: 1, gesehen: false });
   }
-  bewegung.spuren = spuren.filter(sp => jetzt - sp.zuletzt < 1200);
+  // „Geister“: Wo jemand beim Lernen stand und dann wegging, sieht der Hintergrund anders aus
+  // als gelernt – das wirkt wie eine Person, die sich nie regt. Solche Bereiche werden nach
+  // 4 s ohne jede feine Bewegung in den Hintergrund übernommen.
+  for (const sp of spuren) {
+    if (jetzt - sp.zuletzt < 300 && jetzt - sp.zuletztAktiv > 4000) {
+      const [bx, by, bw, bh] = sp.box;
+      for (let y = by; y < by + bh; y++) for (let x = bx; x < bx + bw; x++) {
+        const i = y * PW + x;
+        if (sauber[i] || bewegt[i]) hg[i] = aktuell[i];
+      }
+      sp.zuletzt = -1e9;
+    }
+  }
+  bewegung.spuren = spuren.filter(sp => jetzt - sp.zuletzt < 2500);
+}
+
+/** Binärmaske um r Pixel ausdehnen (getrennt in x und y) */
+function ausdehnen(von, nach, r) {
+  for (let y = 0; y < PH; y++) {
+    let letzte = -1e9;
+    for (let x = 0; x < PW; x++) { if (von[y * PW + x]) letzte = x; tmp[y * PW + x] = x - letzte <= r ? 1 : 0; }
+    letzte = 1e9;
+    for (let x = PW - 1; x >= 0; x--) { if (von[y * PW + x]) letzte = x; if (letzte - x <= r) tmp[y * PW + x] = 1; }
+  }
+  for (let x = 0; x < PW; x++) {
+    let letzte = -1e9;
+    for (let y = 0; y < PH; y++) { if (tmp[y * PW + x]) letzte = y; nach[y * PW + x] = y - letzte <= r ? 1 : 0; }
+    letzte = 1e9;
+    for (let y = PH - 1; y >= 0; y--) { if (tmp[y * PW + x]) letzte = y; if (letzte - y <= r) nach[y * PW + x] = 1; }
+  }
 }
 
 /** Zusammenhängende Bewegungsbereiche finden (Kopf, Arme, Körper einer Person verschmelzen). */
@@ -90,10 +138,11 @@ function findeKlumpen() {
     if (!breit[i] || label[i]) continue;
     nr++;
     let sp = 0; stapel[sp++] = i; label[i] = nr;
-    let n = 0, sx = 0, x0 = PW, x1 = -1, y0 = PH, y1 = -1;
+    let n = 0, sx = 0, aktiv = 0, sxa = 0, x0 = PW, x1 = -1, y0 = PH, y1 = -1;
     while (sp) {
       const j = stapel[--sp];
       const x = j % PW, y = (j / PW) | 0;
+      if (regung[j]) { aktiv++; sxa += x; }
       if (sauber[j]) {
         n++; sx += x;
         if (x < x0) x0 = x;
@@ -106,18 +155,39 @@ function findeKlumpen() {
       if (y > 0 && breit[j - PW] && !label[j - PW]) { label[j - PW] = nr; stapel[sp++] = j - PW; }
       if (y < PH - 1 && breit[j + PW] && !label[j + PW]) { label[j + PW] = nr; stapel[sp++] = j + PW; }
     }
-    if (n > N * 0.005) {
-      klumpen.push({
-        x: sx / n / PW,
-        y: (y0 + (y1 - y0) * 0.22) / PH,     // oberer Teil ~ Kopf
-        w: (x1 - x0 + 1) / PW,
-        flaeche: n / N,
-        box: [x0, y0, x1 - x0 + 1, y1 - y0 + 1]
-      });
+    if (n > N * 0.002) klumpen.push({ n, sx, aktiv, sxa, x0, x1, y0, y1 });
+  }
+  // Teile übereinander (Kopf, Oberkörper, Beine) gehören zu einer Person -> verschmelzen
+  let verschmolzen = true;
+  while (verschmolzen) {
+    verschmolzen = false;
+    for (let a = 0; a < klumpen.length && !verschmolzen; a++) for (let b = a + 1; b < klumpen.length; b++) {
+      const A = klumpen[a], B = klumpen[b];
+      const ueber = Math.min(A.x1, B.x1) - Math.max(A.x0, B.x0) + 1;
+      const schmal = Math.min(A.x1 - A.x0, B.x1 - B.x0) + 1;
+      const luecke = Math.max(A.y0, B.y0) - Math.min(A.y1, B.y1);
+      if (ueber >= schmal * 0.5 && luecke <= PH * 0.2) {
+        klumpen[a] = { n: A.n + B.n, sx: A.sx + B.sx, aktiv: A.aktiv + B.aktiv, sxa: A.sxa + B.sxa,
+                       x0: Math.min(A.x0, B.x0), x1: Math.max(A.x1, B.x1), y0: Math.min(A.y0, B.y0), y1: Math.max(A.y1, B.y1) };
+        klumpen.splice(b, 1);
+        verschmolzen = true;
+        break;
+      }
     }
   }
-  klumpen.sort((a, b) => b.flaeche - a.flaeche);
-  return klumpen.slice(0, 5);
+  return klumpen
+    .filter(k => k.n > N * 0.005)
+    .map(k => ({
+      // Wo es sich regt, ist die Person – das zieht die Position weg von trägen Restflächen
+      x: (k.aktiv >= 6 ? 0.7 * k.sxa / k.aktiv + 0.3 * k.sx / k.n : k.sx / k.n) / PW,
+      y: (k.y0 + (k.y1 - k.y0) * 0.22) / PH,     // oberer Teil ~ Kopf
+      w: (k.x1 - k.x0 + 1) / PW,
+      flaeche: k.n / N,
+      aktiv: k.aktiv,
+      box: [k.x0, k.y0, k.x1 - k.x0 + 1, k.y1 - k.y0 + 1]
+    }))
+    .sort((a, b) => b.flaeche - a.flaeche)
+    .slice(0, 5);
 }
 
 function analysieren() {
@@ -154,24 +224,35 @@ function analysieren() {
   const schnellSchwelle = Math.max(22, bewegung.rauschen * 4);
 
   // schnelle Bewegung
+  ignorAktualisieren();
+  const regSchwelle = Math.max(7, bewegung.rauschen * 3);
   let nSchnell = 0;
   for (let i = 0; i < N; i++) {
-    const b = vorherBereit && Math.abs(aktuell[i] - vorher[i]) > schnellSchwelle ? 1 : 0;
+    const d = vorherBereit && !ignor[i] ? Math.abs(aktuell[i] - vorher[i]) : 0;
+    const b = d > schnellSchwelle ? 1 : 0;
     schnell[i] = b; nSchnell += b;
+    regung[i] = d > regSchwelle ? 1 : 0;
   }
   if (nSchnell > N * 0.6) schnell.fill(0);       // Kamera gewackelt / Licht
   vorher.set(aktuell);
   vorherBereit = true;
 
+  // Belichtungsausgleich: Webcams regeln die Helligkeit nach, sobald jemand ins Bild kommt.
+  // Verhältnis Hintergrund/aktuell über alle Stellen ohne Person -> vor dem Vergleich ausgleichen.
+  let sh = 0, sa = 0;
+  for (let i = 0; i < N; i++) if (!sauber[i]) { sh += hg[i]; sa += aktuell[i]; }
+  const ausgleich = sa > 0 ? klemm(sh / sa, 0.7, 1.4) : 1;
+
   // Hintergrundmodell
   let anzahl = 0;
   const thr = Math.max(bewegung.schwelle, bewegung.rauschen * 3.5);
   for (let i = 0; i < N; i++) {
-    const b = Math.abs(aktuell[i] - hg[i]) > thr ? 1 : 0;
+    const b = !ignor[i] && Math.abs(aktuell[i] * ausgleich - hg[i]) > thr ? 1 : 0;
     bewegt[i] = b; anzahl += b;
   }
   sauber.fill(0);
   const jetzt = performance.now();
+  // (sauber war bis eben die Maske des letzten Bildes – oben für den Belichtungsausgleich genutzt)
 
   if (lernen > 0 || anzahl > N * 0.55) {
     // Lernphase oder Licht/Handy hat sich geändert: Hintergrund neu übernehmen
@@ -186,8 +267,16 @@ function analysieren() {
     }
     bewegung.gesamt = n / N;
     spurenAktualisieren(findeKlumpen(), jetzt);
-    // Hintergrund langsam nachführen; bewegte Stellen nur sehr langsam
-    for (let i = 0; i < N; i++) hg[i] += (aktuell[i] - hg[i]) * (bewegt[i] ? 0.004 : 0.05);
+    // Wo sich seit ~1 s in der Nähe nichts regt, aber trotzdem „Person“ erkannt wird, ist ein Geist:
+    // z. B. die Stelle, an der jemand beim Lernen stand. Diese Pixel wandern rasch in den Hintergrund.
+    ausdehnen(regung, regungNah, 4);
+    const geistNach = Math.round(1000 / bewegung.takt);
+    for (let i = 0; i < N; i++) {
+      ruhig[i] = regungNah[i] ? 0 : Math.min(60000, ruhig[i] + 1);
+      // Hintergrund langsam nachführen (an die neue Belichtung); echte Personen nur sehr langsam
+      const rate = !bewegt[i] ? 0.05 : ruhig[i] > geistNach ? 0.25 : 0.004;
+      hg[i] += (aktuell[i] - hg[i]) * rate;
+    }
   }
   for (const f of bewegung.beiAnalyse) f(jetzt);
 }
@@ -200,8 +289,9 @@ export function bewegungStarten() {
   schleife();
 }
 
-/** Aktive Personen (lange genug gesehen, nicht verloren) */
-export const aktiveSpuren = t => bewegung.spuren.filter(sp => t - sp.zuletzt < 700 && sp.treffer >= 3);
+/** Aktive Personen: lange genug gesehen, nicht verloren und mit Lebenszeichen (Geister zählen nicht) */
+export const aktiveSpuren = t => bewegung.spuren.filter(sp =>
+  t - sp.zuletzt < 1500 && sp.treffer >= 3 && t - sp.zuletztAktiv < 1200);
 
 /** Kamerabild-Koordinate (0..1) -> Bildschirm-Anteil (0..1), berücksichtigt das Spiegeln */
 export const aufBildschirm = x => (S.spiegeln ? 1 - x : x);

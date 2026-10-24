@@ -3,7 +3,7 @@
 import { S, speichern, ansicht } from './einstellungen.js';
 import { klemm } from './util.js';
 import { spielAktiv, patschBei } from './spiel/spinnenjagd.js';
-import { vorschauSchalten } from './vorschau.js';
+import { vorschau, vorschauSchalten } from './vorschau.js';
 import { kamera } from './kamera.js';
 import { zeige } from './hinweis.js';
 import { klangFreischalten } from './audio.js';
@@ -153,6 +153,7 @@ export function uiEinrichten(aktionen) {
     vorschauSchalten(an);
     if (an && !kamera.laeuft) zeige('Die Kamera ist nicht aktiv.', 2000);
   });
+  ausblendenEinrichten(aktionen);
   $('bBlinzeln').addEventListener('click', aktionen.blinzeln);
   $('bNeu').addEventListener('click', () => { aktionen.neuLernen(); zeige('Kurz stillhalten …', 1800); });
   $('bVoll').addEventListener('click', vollbild);
@@ -298,4 +299,46 @@ function beruehrungEinrichten(aktionen) {
     else if (e.key === 'b') aktionen.blinzeln();
     else if (e.key === 'f') vollbild();
   });
+}
+
+// ---------------- Bereiche im Kamerabild ausblenden ----------------
+function ausblendenEinrichten(aktionen) {
+  const dialog = $('ausblendDialog'), cv = $('abRahmen'), g = cv.getContext('2d');
+  let ziehen = null;
+  const pos = e => {
+    const r = cv.getBoundingClientRect();
+    return [klemm((e.clientX - r.left) / r.width, 0, 1), klemm((e.clientY - r.top) / r.height, 0, 1)];
+  };
+  const zeichnen = () => {
+    g.clearRect(0, 0, cv.width, cv.height);
+    const alle = ziehen ? [...S.ignorieren, ziehen] : S.ignorieren;
+    for (const [a, b, c, d] of alle) {
+      const x = Math.min(a, c) * cv.width, y = Math.min(b, d) * cv.height;
+      const w = Math.abs(c - a) * cv.width, h = Math.abs(d - b) * cv.height;
+      g.fillStyle = 'rgba(10,6,4,0.72)'; g.fillRect(x, y, w, h);
+      g.setLineDash([8, 6]); g.lineWidth = 2; g.strokeStyle = '#ffc163'; g.strokeRect(x, y, w, h); g.setLineDash([]);
+    }
+  };
+  const oeffnen = () => {
+    if (!kamera.laeuft) zeige('Erst die Kamera starten.', 2500);
+    dialog.hidden = false; vorschau.dialog = true; leisteZeigen(false); zeichnen();
+  };
+  const schliessen = () => { dialog.hidden = true; vorschau.dialog = false; speichern(); aktionen.neuLernen(); };
+  $('bAusblenden').addEventListener('click', oeffnen);
+  $('abFertig').addEventListener('click', schliessen);
+  $('abLeeren').addEventListener('click', () => { S.ignorieren = []; speichern(); zeichnen(); });
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); const p = pos(e); ziehen = [p[0], p[1], p[0], p[1]]; });
+  cv.addEventListener('pointermove', e => { if (!ziehen) return; const p = pos(e); ziehen[2] = p[0]; ziehen[3] = p[1]; zeichnen(); });
+  cv.addEventListener('pointerup', e => {
+    if (!ziehen) return;
+    const [a, b, c, d] = ziehen;
+    ziehen = null;
+    if (Math.abs(c - a) < 0.03 && Math.abs(d - b) < 0.03) {
+      // Antippen: Rechteck an dieser Stelle löschen
+      const i = S.ignorieren.findIndex(([x0, y0, x1, y1]) => a >= Math.min(x0, x1) && a <= Math.max(x0, x1) && b >= Math.min(y0, y1) && b <= Math.max(y0, y1));
+      if (i >= 0) S.ignorieren.splice(i, 1);
+    } else if (S.ignorieren.length < 12) S.ignorieren.push([Math.min(a, c), Math.min(b, d), Math.max(a, c), Math.max(b, d)]);
+    speichern(); zeichnen();
+  });
+  addEventListener('keydown', e => { if (e.key === 'Escape' && !dialog.hidden) schliessen(); });
 }
