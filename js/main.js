@@ -147,7 +147,10 @@ async function handyVerbinden() {
   }
   await empfaengerStarten();
   const adresse = senderAdresse();
-  handyDialogZeigen(adresse, qrSvg(adresse));
+  let svg = '';
+  try { svg = await qrSvg(adresse); }
+  catch (e) { console.error('QR-Code nicht verfügbar:', e); zeige('QR-Code konnte nicht geladen werden – die Adresse unten im Handy eintippen.', 6000); }
+  handyDialogZeigen(adresse, svg);
   handyStatus(STATUS_TEXT[fern.status] || '', fern.status === 'verbunden');
 }
 

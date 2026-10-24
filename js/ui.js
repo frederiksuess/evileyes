@@ -80,6 +80,7 @@ export async function kameraWahlFuellen(liste) {
 const handyDialog = $('handyDialog');
 export function handyDialogZeigen(adresse, svg) {
   $('qr').innerHTML = svg;
+  $('qr').hidden = !svg;
   $('hdAdresse').textContent = adresse;
   handyDialog.hidden = false;
   leisteZeigen(false);

@@ -4,7 +4,6 @@
 // Das Video selbst fließt direkt im WLAN von Gerät zu Gerät; der Server vermittelt nur.
 import { S, speichern } from './einstellungen.js';
 import { fremdenStreamSetzen } from './kamera.js';
-import qrcode from './vendor/qrcode-2.0.4.mjs';
 
 let laden = null;
 /** PeerJS erst laden, wenn es gebraucht wird */
@@ -12,7 +11,7 @@ export function peerBibliothek() {
   laden ??= new Promise((ok, fehler) => {
     if (window.peerjs?.Peer) return ok(window.peerjs.Peer);
     const s = document.createElement('script');
-    s.src = new URL('./vendor/peerjs-1.5.5.min.js', import.meta.url).href;
+    s.src = new URL('./extern/peerjs-1.5.5.min.js', import.meta.url).href;
     s.onload = () => ok(window.peerjs.Peer);
     s.onerror = () => { laden = null; fehler(new Error('PeerJS konnte nicht geladen werden')); };
     document.head.append(s);
@@ -93,7 +92,9 @@ export function senderAdresse() {
   return u.href;
 }
 
-export function qrSvg(text) {
+/** QR-Code als SVG. Die Bibliothek wird erst hier geladen – fehlt sie, betrifft das nur den QR-Code. */
+export async function qrSvg(text) {
+  const { default: qrcode } = await import('./extern/qrcode-2.0.4.mjs');
   const qr = qrcode(0, 'M');
   qr.addData(text);
   qr.make();
