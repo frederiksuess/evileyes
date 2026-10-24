@@ -34,6 +34,8 @@ export class VogelspinneSzene {
     this.id = 'vogelspinne';
     this.abdunkeln = 0.3;
     this.hatHoehe = false;           // „Höhe“ ergibt hier keinen Sinn
+    this.fingerSofort = true;        // die Spinne jagt den Finger schon beim Auflegen
+    this.halteStartetSpiel = false;  // Finger stillhalten lockt die Spinne – kein Spielstart
     this.W = 0; this.H = 0;
     this.ecke = null;
     this.zustand = 'lauern';
@@ -46,15 +48,20 @@ export class VogelspinneSzene {
   // ------------------------------------------------------------------
   //  Aufbau: Ecke, Netz, Spinne
   // ------------------------------------------------------------------
-  aufbauen(W, H) {
+  aufbauen(W, H, istInnen = () => true) {
     this.W = W; this.H = H;
     const U = Math.min(W, H);
     this.ecke ??= [Math.random() < 0.5 ? 0 : 1, Math.random() < 0.5 ? 0 : 1];
     const [ex, ey] = this.ecke;
-    this.eckPunkt = [ex ? W : 0, ey ? H : 0];
     const innen = [ex ? -1 : 1, ey ? -1 : 1];
-    this.versteck = [this.eckPunkt[0] + innen[0] * U * 0.2, this.eckPunkt[1] + innen[1] * U * 0.19];
-    this.nabe = [this.eckPunkt[0] + innen[0] * U * 0.12, this.eckPunkt[1] + innen[1] * U * 0.11];
+    // Bei einem runden Portal liegen die Ecken außerhalb: so weit zur Mitte rücken,
+    // bis der Punkt sichtbar im Portal liegt
+    let ecke = [ex ? W : 0, ey ? H : 0];
+    const mitte = [W / 2, H / 2];
+    for (let k = 0; k < 40 && !istInnen(...ecke); k++) ecke = lerp2(ecke, mitte, 0.04);
+    this.eckPunkt = ecke;
+    this.versteck = [ecke[0] + innen[0] * U * 0.2, ecke[1] + innen[1] * U * 0.19];
+    this.nabe = [ecke[0] + innen[0] * U * 0.12, ecke[1] + innen[1] * U * 0.11];
     this.netzBauen(W, H, innen);
 
     // Spinne in ihr Versteck setzen
@@ -291,7 +298,10 @@ export class VogelspinneSzene {
   zeichne(ctx, t, dt, e) {
     const { W, H } = e;
     this.s = Math.min(W, H) * 0.12 * S.ansicht.vogelspinne.zoom;
-    if (W !== this.W || H !== this.H || !this.ecke || !this.beine) this.aufbauen(W, H);
+    if (W !== this.W || H !== this.H || !this.ecke || !this.beine || e.portalVersion !== this.portalVersion) {
+      this.portalVersion = e.portalVersion;
+      this.aufbauen(W, H, e.innen);
+    }
     this.verhalten(t, dt, e);
     this.beineBewegen(t, dt);
 
