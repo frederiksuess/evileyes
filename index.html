@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Feueraugen, Skelett und Vogelspinne, die jeder Bewegung vor der Kamera folgen.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Feueraugen">
+<title>Feueraugen</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="assets/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="preload" href="assets/fonts/grenze-gotisch-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="css/style.css">
+<script type="module" src="js/main.js"></script>
+</head>
+<body>
+<canvas id="buehne" aria-label="Eine Kreatur, die der Bewegung vor der Kamera folgt"></canvas>
+
+<div id="vorschauBox" aria-hidden="true">
+  <canvas id="vorschau" width="96" height="72"></canvas>
+  <div id="vorschauInfo"></div>
+</div>
+<video id="video" playsinline muted autoplay hidden></video>
+
+<div id="start">
+  <h1>Feueraugen</h1>
+  <p>Stell das Handy hin, Bildschirm zum Raum. Die Kreatur folgt jeder Bewegung vor der Frontkamera.</p>
+  <button class="knopf" id="losKamera">Kamera starten</button>
+  <button class="leise" id="losFinger">Ohne Kamera – mit dem Finger steuern</button>
+</div>
+
+<div id="hinweis" role="status" aria-live="polite"></div>
+
+<div id="leiste">
+  <div class="innen">
+    <div class="motivwahl" role="group" aria-label="Motiv">
+      <div class="segment">
+        <button data-motiv="schuppen" aria-pressed="false">Schuppen</button>
+        <button data-motiv="rauch" aria-pressed="false">Rauch</button>
+        <button data-motiv="skelett" aria-pressed="false">Skelett</button>
+        <button data-motiv="vogelspinne" aria-pressed="false">Vogelspinne</button>
+      </div>
+    </div>
+    <div class="reihe">
+      <button class="klein" id="bMehrere" aria-pressed="true">Mehrere Personen</button>
+      <button class="klein" id="bSpiegeln" aria-pressed="true">Spiegeln</button>
+      <button class="klein" id="bVorschau" aria-pressed="false">Kamerabild</button>
+    </div>
+    <div class="reihe">
+      <button class="klein" id="bBlinzeln">Blinzeln</button>
+      <button class="klein" id="bNeu">Hintergrund neu lernen</button>
+      <button class="klein" id="bVoll">Vollbild</button>
+    </div>
+    <div class="regler-gruppe">
+      <label for="rZoom">Größe</label>
+      <input type="range" id="rZoom" min="50" max="300" step="1" value="100">
+      <output id="oZoom" for="rZoom">100 %</output>
+      <div class="zeile" id="hoeheZeile">
+        <label for="rHoehe">Höhe</label>
+        <input type="range" id="rHoehe" min="-100" max="100" step="1" value="0">
+        <output id="oHoehe" for="rHoehe">0</output>
+      </div>
+      <label for="rEmpf">Empfindlichkeit</label>
+      <input type="range" id="rEmpf" min="6" max="60" value="34">
+      <output id="oEmpf" for="rEmpf">34</output>
+    </div>
+    <div class="zeile-unten">
+      <button class="leise" id="bReset">Größe und Höhe zurücksetzen</button>
+    </div>
+  </div>
+</div>
+
+<div id="hud" hidden>
+  <div class="hud-feld"><span id="hPunkte">0</span><small>erwischt</small></div>
+  <div class="hud-feld" id="hZeitFeld"><span id="hZeit">30</span><small>Sekunden</small></div>
+</div>
+<div id="countdown" hidden aria-live="assertive"></div>
+<div id="ergebnis" hidden role="dialog" aria-labelledby="eTitel">
+  <h2 id="eTitel">Spinnenjagd vorbei</h2>
+  <div id="eZahl">0</div>
+  <p id="eText"></p>
+  <button class="knopf" id="eNochmal">Nochmal spielen</button>
+  <button class="leise" id="eZurueck">Zurück</button>
+</div>
+<noscript><p style="color:#e4d9cb;padding:24px">Diese App braucht JavaScript.</p></noscript>
+</body>
+</html>
