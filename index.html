@@ -31,7 +31,10 @@
   <h1>Feueraugen</h1>
   <p>Stell das Handy hin, Bildschirm zum Raum. Die Kreatur folgt jeder Bewegung vor der Frontkamera.</p>
   <button class="knopf" id="losKamera">Kamera starten</button>
-  <button class="leise" id="losFinger">Ohne Kamera – mit dem Finger steuern</button>
+  <div class="start-weitere">
+    <button class="leise" id="losHandy">Handy als Kamera</button>
+    <button class="leise" id="losFinger">Ohne Kamera</button>
+  </div>
 </div>
 
 <div id="hinweis" role="status" aria-live="polite"></div>
@@ -46,15 +49,25 @@
         <button data-motiv="vogelspinne" aria-pressed="false">Vogelspinne</button>
       </div>
     </div>
+
+    <h2 class="abschnitt">Kamera</h2>
     <div class="reihe">
-      <button class="klein" id="bMehrere" aria-pressed="true">Mehrere Personen</button>
-      <button class="klein" id="bSpiegeln" aria-pressed="true">Spiegeln</button>
-      <button class="klein" id="bVorschau" aria-pressed="false">Kamerabild</button>
+      <label class="auswahl"><span class="sr-only">Kamera</span>
+        <select id="kameraWahl"><option value="">Kamera dieses Geräts</option><option value="handy">Handy als Kamera …</option></select>
+      </label>
+      <button class="klein" id="bNacht" aria-pressed="true">Restlichtverstärker</button>
     </div>
     <div class="reihe">
-      <button class="klein" id="bBlinzeln">Blinzeln</button>
+      <button class="klein" id="bSpiegeln" aria-pressed="true">Spiegeln</button>
+      <button class="klein" id="bVorschau" aria-pressed="false">Kamerabild</button>
       <button class="klein" id="bNeu">Hintergrund neu lernen</button>
+    </div>
+
+    <h2 class="abschnitt">Anzeige</h2>
+    <div class="reihe">
+      <button class="klein" id="bPortal">Portal anpassen</button>
       <button class="klein" id="bVoll">Vollbild</button>
+      <button class="klein" id="bBlinzeln">Blinzeln</button>
     </div>
     <div class="regler-gruppe">
       <label for="rZoom">Größe</label>
@@ -65,12 +78,65 @@
         <input type="range" id="rHoehe" min="-100" max="100" step="1" value="0">
         <output id="oHoehe" for="rHoehe">0</output>
       </div>
+    </div>
+    <div class="zeile-unten">
+      <button class="leise" id="bReset">Größe und Höhe zurücksetzen</button>
+    </div>
+
+    <h2 class="abschnitt">Verhalten</h2>
+    <div class="reihe">
+      <button class="klein" id="bMehrere" aria-pressed="true">Mehrere Personen</button>
+    </div>
+    <div class="regler-gruppe">
       <label for="rEmpf">Empfindlichkeit</label>
       <input type="range" id="rEmpf" min="6" max="60" value="34">
       <output id="oEmpf" for="rEmpf">34</output>
     </div>
-    <div class="zeile-unten">
-      <button class="leise" id="bReset">Größe und Höhe zurücksetzen</button>
+    <p class="feld-titel">Spinnenjagd starten durch</p>
+    <div class="motivwahl" role="group" aria-label="Spinnenjagd starten durch">
+      <div class="segment">
+        <button data-ausloeser="winken" aria-pressed="false">Winken</button>
+        <button data-ausloeser="peace" aria-pressed="false">Peace</button>
+        <button data-ausloeser="beide" aria-pressed="false">Beides</button>
+        <button data-ausloeser="aus" aria-pressed="false">Aus</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Portal-Editor -->
+<div id="portalLeiste" hidden>
+  <p class="portal-hilfe">Punkte ziehen · innen ziehen verschiebt · Mausrad oder zwei Finger: Größe · Doppelklick auf einen Punkt: Ecke ↔ rund</p>
+  <div class="reihe">
+    <button class="klein" data-vorlage="oval">Oval</button>
+    <button class="klein" data-vorlage="kreis">Kreis</button>
+    <button class="klein" data-vorlage="torbogen">Torbogen</button>
+    <button class="klein" data-vorlage="rechteck">Rechteck</button>
+  </div>
+  <div class="reihe">
+    <button class="klein" id="pSym" aria-pressed="true">Symmetrisch</button>
+    <button class="klein" id="pGlut" aria-pressed="false">Glühender Rand</button>
+    <button class="klein" id="pAn" aria-pressed="true">Portal an</button>
+  </div>
+  <div class="regler-gruppe">
+    <label for="pWeich">Rand weich</label>
+    <input type="range" id="pWeich" min="0" max="15" step="0.5" value="3">
+    <output id="oWeich" for="pWeich">3</output>
+  </div>
+  <div class="zeile-unten"><button class="knopf" id="pFertig">Fertig</button></div>
+</div>
+
+<!-- Handy als Kamera -->
+<div id="handyDialog" hidden role="dialog" aria-labelledby="hdTitel">
+  <div class="dialog-innen">
+    <h2 id="hdTitel">Handy als Kamera</h2>
+    <p>QR-Code mit dem Handy scannen und dort „Kamera starten“ tippen. Beide Geräte brauchen Internet; das Video selbst bleibt im WLAN.</p>
+    <div id="qr" aria-hidden="true"></div>
+    <p class="adresse" id="hdAdresse"></p>
+    <p id="hdStatus" role="status" aria-live="polite"></p>
+    <div class="reihe">
+      <button class="klein" id="hdSchliessen">Schließen</button>
+      <button class="leise" id="hdLokal">Doch die Kamera dieses Geräts</button>
     </div>
   </div>
 </div>
