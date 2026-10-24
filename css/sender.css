@@ -1,0 +1,28 @@
+/* Seite für das Handy, das als Kamera dient */
+body.sender { overflow: auto; touch-action: manipulation; user-select: auto; }
+#senderSeite {
+  min-height: 100%; max-width: 480px; margin: 0 auto; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  padding: calc(24px + env(safe-area-inset-top, 0px)) 20px calc(28px + env(safe-area-inset-bottom, 0px));
+}
+#senderSeite h1 {
+  font-family: var(--title-font); font-weight: 500; font-size: 52px; line-height: 1; margin: 0;
+  color: var(--ember-hot); text-shadow: 0 0 18px rgba(240, 120, 20, 0.6);
+}
+.untertitel { margin: -6px 0 0; color: var(--ash); }
+.vorschau-rahmen {
+  position: relative; width: 100%; aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--line); background: #0a0806;
+}
+#eigenesBild { width: 100%; height: 100%; object-fit: cover; display: block; }
+#keinBild { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--ash); }
+#senderStatus { margin: 0; min-height: 1.45em; font-weight: 500; }
+#senderStatus.ok { color: #9fd36b; }
+#senderStatus.warnung { color: var(--ember-hot); }
+.tipp { margin: 4px 0 0; font-size: 15px; color: var(--ash); max-width: 36ch; }
+#schwarz {
+  position: fixed; inset: 0; z-index: 10; background: #000;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+}
+#schwarzStatus { font-size: 12px; color: #2a2420; }

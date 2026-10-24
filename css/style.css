@@ -174,3 +174,43 @@ button { font: inherit; }
 @media (prefers-reduced-motion: reduce) {
   #start, #leiste, #hinweis { transition: none; }
 }
+
+/* ---------- Ergänzungen: Abschnitte, Auswahl, Portal, Handy ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.start-weitere { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.start-weitere .leise { margin-top: 10px; }
+.abschnitt {
+  font: 700 13px/1 var(--ui-font); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ash); margin: 18px 0 8px; text-align: center;
+}
+.feld-titel { margin: 12px 0 6px; text-align: center; font-size: 15px; color: var(--ash); }
+.auswahl select {
+  font: 500 16px var(--ui-font); color: var(--bone); background: #1c1612;
+  border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 44px; max-width: 260px;
+}
+.auswahl select:focus-visible { outline: 2px solid var(--ember-hot); outline-offset: 3px; }
+
+#portalLeiste {
+  position: fixed; left: 50%; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 9;
+  transform: translateX(-50%); width: min(560px, calc(100% - 24px));
+  padding: 12px 14px; border-radius: 16px; background: var(--sheet); border: 1px solid var(--line);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+}
+.portal-hilfe { margin: 0 0 10px; font-size: 14px; color: var(--ash); text-align: center; }
+#portalLeiste .knopf { min-width: 160px; padding: 13px 26px; }
+
+#handyDialog {
+  position: fixed; inset: 0; z-index: 9; display: flex; align-items: center; justify-content: center;
+  padding: 20px; background: rgba(0, 0, 0, 0.8);
+}
+.dialog-innen {
+  width: min(460px, 100%); max-height: 100%; overflow: auto; text-align: center;
+  padding: 20px; border-radius: 18px; background: var(--sheet); border: 1px solid var(--line);
+}
+.dialog-innen h2 { font-family: var(--title-font); font-weight: 500; font-size: 40px; margin: 0 0 6px; color: var(--ember-hot); }
+.dialog-innen p { margin: 0 0 12px; }
+#qr { width: min(280px, 70vw); margin: 8px auto 10px; background: #fff; border-radius: 10px; padding: 6px; }
+#qr svg { display: block; width: 100%; height: auto; }
+.adresse { font-size: 12px; color: var(--ash); word-break: break-all; user-select: all; }
+#hdStatus { font-weight: 500; min-height: 1.45em; }
+#hdStatus.ok { color: #9fd36b; }
