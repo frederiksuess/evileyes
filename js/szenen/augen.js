@@ -171,7 +171,7 @@ export class AugenSzene {
     if (e.ziel) {
       zx = klemm((e.ziel[0] - L.cx) / (e.W * 0.385), -1, 1);
       zy = klemm((e.ziel[1] - L.cy) / (e.H * 0.385), -1, 1);
-      tempo = e.zielQuelle === 'finger' ? 14 : e.zielQuelle === 'spiel' ? 7 : (e.viele ? 5 : 8);
+      tempo = e.zielQuelle === 'finger' ? 14 : e.zielQuelle === 'spiel' ? 7 : (e.viele ? 6 : 10);
     } else {
       if (t > this.naechsterIdle) {
         this.idle = Math.random() < 0.5 ? { x: 0, y: 0 } : { x: Math.random() * 1.6 - 0.8, y: Math.random() * 0.8 - 0.4 };
