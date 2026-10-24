@@ -1,0 +1,92 @@
+[
+ {
+  "id": "schuppen",
+  "name": "Schuppen",
+  "ordner": "assets/augen/schuppen/",
+  "w": 572,
+  "h": 1024,
+  "maxX": 27,
+  "maxY": 7,
+  "lidQuelle": "oben",
+  "lidDunkel": 0.14,
+  "ex": 285.0,
+  "ey": 515.0,
+  "iris": [
+   {
+    "datei": "iris0.png",
+    "x": 96,
+    "y": 468,
+    "pc": 49.0,
+    "ws": 11.0
+   },
+   {
+    "datei": "iris1.png",
+    "x": 382,
+    "y": 469,
+    "pc": 46.0,
+    "ws": 11.0
+   }
+  ],
+  "augen": [
+   {
+    "cx": 145,
+    "cy": 515,
+    "a": 78,
+    "b": 43,
+    "ang": 7
+   },
+   {
+    "cx": 425,
+    "cy": 515,
+    "a": 78,
+    "b": 43,
+    "ang": -7
+   }
+  ]
+ },
+ {
+  "id": "rauch",
+  "name": "Rauch",
+  "ordner": "assets/augen/rauch/",
+  "w": 572,
+  "h": 1024,
+  "maxX": 30,
+  "maxY": 10,
+  "lidQuelle": "unten",
+  "lidDunkel": 0.18,
+  "ex": 286.5,
+  "ey": 513.0,
+  "iris": [
+   {
+    "datei": "iris0.png",
+    "x": 91,
+    "y": 466,
+    "pc": 47.0,
+    "ws": 11.0
+   },
+   {
+    "datei": "iris1.png",
+    "x": 392,
+    "y": 466,
+    "pc": 41.5,
+    "ws": 10.5
+   }
+  ],
+  "augen": [
+   {
+    "cx": 139,
+    "cy": 513,
+    "a": 84,
+    "b": 47,
+    "ang": -4
+   },
+   {
+    "cx": 434,
+    "cy": 513,
+    "a": 84,
+    "b": 47,
+    "ang": 4
+   }
+  ]
+ }
+]
