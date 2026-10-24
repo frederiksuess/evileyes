@@ -14,8 +14,9 @@ Eine Web-App für Handy, Tablet und PC. Eine Kreatur folgt jeder Bewegung vor de
 
 1. **Portal anpassen:** Einstellungen öffnen (Leertaste oder antippen) → *Portal anpassen* (oder Taste `P`). Eine Vorlage wählen (Oval, Kreis, Torbogen, Rechteck) und die Punkte mit der Maus auf den Rand des Portals auf der Leinwand ziehen. Mit *Symmetrisch* bewegt sich der Spiegelpunkt mit. Innen ziehen verschiebt die Form, das Mausrad ändert die Größe, Doppelklick auf einen Punkt macht ihn eckig oder rund. Außerhalb bleibt alles schwarz, der Beamer wirft dort also kein Licht. *Rand weich* blendet den Übergang aus, *Glühender Rand* lässt die Kante glimmen.
 2. **Wenig Licht:** Der *Restlichtverstärker* (Standard: an) hellt dunkle Kamerabilder auf und passt die Erkennung an das Bildrauschen an. Unter *Kamerabild* siehst du, wie hell die Kamera es sieht und wie stark aufgehellt wird. Als Auslöser für die Spinnenjagd im Dunkeln *Winken* wählen.
-3. **Rückprojektion:** Den Beamer auf „Rückprojektion“ stellen. Schauen die Augen in die falsche Richtung, hilft der Knopf *Spiegeln*.
-4. **Dauerbetrieb:** Mit `?auto` an der Adresse startet die App ohne Startbildschirm mit der zuletzt genutzten Kamera. `tools/linux-kiosk.sh` richtet den Laptop so ein, dass er nach dem Anmelden direkt im Vollbild startet und nicht einschläft:
+3. **Störquellen ausblenden:** Sieht die Kamera die Leinwand, ein Fenster oder flackerndes Licht, hält sie das für Bewegung – die Kreatur folgt dann sich selbst. Unter *Bereiche ausblenden* zieht man Rechtecke über solche Stellen. Unter *Kamerabild* sieht man live, was als Bewegung erkannt wird (orange).
+4. **Rückprojektion:** Den Beamer auf „Rückprojektion“ stellen. Schauen die Augen in die falsche Richtung, hilft der Knopf *Spiegeln*.
+5. **Dauerbetrieb:** Mit `?auto` an der Adresse startet die App ohne Startbildschirm mit der zuletzt genutzten Kamera. `tools/linux-kiosk.sh` richtet den Laptop so ein, dass er nach dem Anmelden direkt im Vollbild startet und nicht einschläft:
    ```bash
    bash tools/linux-kiosk.sh https://<name>.github.io/<repo>/
    ```
@@ -74,7 +75,7 @@ js/winken.js            Winken erkennen (lichtunabhängig)
 js/portal.js            Portal-Form, Maske und Editor
 js/fernkamera.js        Handy als Kamera: Empfänger (WebRTC/PeerJS) und QR-Code
 js/sender.js            Handy-Seite (sender.html), schickt das Kamerabild
-js/vendor/              PeerJS 1.5.5 und qrcode-generator 2.0.4 (beide MIT)
+js/extern/              PeerJS 1.5.5 und qrcode-generator 2.0.4 (beide MIT)
 js/aufmerksamkeit.js    wen die Kreatur gerade anschaut (bewusst träge)
 js/mediapipe.js         lädt Googles MediaPipe bei Bedarf (Peace-Geste, Körper)
 js/ui.js                Startbildschirm, Einstellungen, Berührungsgesten
@@ -112,4 +113,4 @@ Für „Handy als Kamera“ läuft der Verbindungsaufbau über den PeerJS-Server
 
 - Schriften: Grenze Gotisch und Alegreya Sans, SIL Open Font License (siehe `assets/fonts/`)
 - MediaPipe: Apache 2.0 (Google)
-- PeerJS und qrcode-generator: MIT (siehe `js/vendor/`)
+- PeerJS und qrcode-generator: MIT (siehe `js/extern/`)

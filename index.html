@@ -60,6 +60,7 @@
     <div class="reihe">
       <button class="klein" id="bSpiegeln" aria-pressed="true">Spiegeln</button>
       <button class="klein" id="bVorschau" aria-pressed="false">Kamerabild</button>
+      <button class="klein" id="bAusblenden">Bereiche ausblenden</button>
       <button class="klein" id="bNeu">Hintergrund neu lernen</button>
     </div>
 
@@ -124,6 +125,23 @@
     <output id="oWeich" for="pWeich">3</output>
   </div>
   <div class="zeile-unten"><button class="knopf" id="pFertig">Fertig</button></div>
+</div>
+
+<!-- Bereiche im Kamerabild ausblenden -->
+<div id="ausblendDialog" hidden role="dialog" aria-labelledby="abTitel">
+  <div class="dialog-innen breit">
+    <h2 id="abTitel">Bereiche ausblenden</h2>
+    <p>Rechtecke über Stellen ziehen, die ignoriert werden sollen – etwa die Leinwand, ein Fenster oder flackerndes Licht. Antippen eines Rechtecks löscht es.</p>
+    <div class="ausblend-flaeche">
+      <canvas id="abBild" width="96" height="72"></canvas>
+      <canvas id="abRahmen" width="640" height="480"></canvas>
+    </div>
+    <p class="adresse">Orange = erkannte Bewegung · so sieht die Kamera das Bild (nicht gespiegelt)</p>
+    <div class="reihe">
+      <button class="klein" id="abLeeren">Alle löschen</button>
+      <button class="knopf" id="abFertig">Fertig</button>
+    </div>
+  </div>
 </div>
 
 <!-- Handy als Kamera -->
