@@ -1,0 +1,55 @@
+/* Fernbedienung fürs Handy: große Knöpfe, dunkel, mit einer Hand bedienbar */
+body.fern { overflow: auto; touch-action: manipulation; user-select: none; }
+#fernSeite {
+  max-width: 520px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px;
+  padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(28px + env(safe-area-inset-bottom, 0px));
+}
+#fernSeite header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+#fernSeite h1 { font-family: var(--title-font); font-weight: 500; font-size: 38px; margin: 0; color: var(--ember-hot); }
+#fernSeite h2 { font: 700 13px/1 var(--ui-font); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ash); margin: 6px 0 8px; }
+#fernStatus { margin: 0; font-size: 14px; display: flex; align-items: center; gap: 6px; color: var(--ash); }
+.punkt { width: 10px; height: 10px; border-radius: 50%; background: #6b5e54; }
+#fernStatus.ok .punkt { background: #8fd36b; box-shadow: 0 0 8px #8fd36b; }
+#fernStatus.ok { color: var(--bone); }
+
+button { font: inherit; cursor: pointer; }
+.schreck {
+  width: 100%; min-height: 96px; border: 0; border-radius: 22px;
+  font: 500 46px/1 var(--title-font); color: #1a0702;
+  background: radial-gradient(circle at 50% 30%, #ffb35c, #e2531a 60%, #9c2a0a);
+  box-shadow: 0 0 0 1px rgba(255,190,120,0.5), 0 10px 40px rgba(230,80,20,0.45);
+}
+.schreck:active, .aktion:active { transform: scale(0.97); }
+.raster3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.spalte { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.aktion {
+  min-height: 56px; padding: 10px 8px; border-radius: 14px; border: 1px solid var(--line);
+  background: rgba(255,255,255,0.05); color: var(--bone); font: 500 16px/1.2 var(--ui-font); hyphens: manual;
+}
+.aktion.breit { width: 100%; text-align: left; padding: 12px 14px; }
+.aktion[aria-pressed="true"] { background: var(--ember); color: #1a0d03; border-color: var(--ember); }
+button:disabled { opacity: 0.4; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--ember-hot); outline-offset: 3px; }
+
+#pad {
+  position: relative; width: 100%; aspect-ratio: 16 / 10; border-radius: 16px; touch-action: none;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(rgba(240,138,36,0.12) 1px, transparent 1px) 0 0 / 25% 25%,
+    linear-gradient(90deg, rgba(240,138,36,0.12) 1px, transparent 1px) 0 0 / 25% 25%,
+    #0d0907;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+}
+#pad span { color: var(--ash); font-size: 14px; padding: 0 20px; pointer-events: none; }
+#padPunkt {
+  position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%;
+  background: radial-gradient(circle, #ffc163, #f08a24 60%, rgba(240,138,36,0));
+  left: 50%; top: 50%; opacity: 0; transition: opacity 0.2s;
+}
+#pad.aktiv #padPunkt { opacity: 1; }
+#pad.aktiv span { opacity: 0; }
+.feld { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; font-size: 14px; color: var(--ash); }
+.feld input {
+  font: 500 18px var(--ui-font); color: var(--bone); background: #1c1612;
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; user-select: text;
+}
