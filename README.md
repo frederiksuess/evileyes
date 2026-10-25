@@ -33,6 +33,8 @@ Einstellungen → *Party* → *Fernbedienung koppeln*, QR-Code mit dem eigenen H
 - **Botschaft** – Name eingeben und z. B. „Ich habe auf dich gewartet, Lena …“ erscheint in Flammenschrift im Portal; auch eigener Text
 - **Motiv** wechseln und die **Spinnenjagd** starten
 
+Die Befehle laufen auf zwei Wegen gleichzeitig: **direkt** per WebRTC und über ein **Relay** (die öffentlichen MQTT-Broker von HiveMQ und EMQX). So klappt die Fernbedienung auch, wenn das Netz direkte Verbindungen blockiert, etwa im Gast-WLAN oder wenn das Handy im Mobilnetz ist. Doppelt ankommende Befehle sortiert das Portal aus. Der Kopplungsdialog zeigt, welche Wege bereit sind. Über das Relay läuft nur, was du in der Fernbedienung antippst (inklusive Botschaftstext), unter der zufälligen Kennung des Portals. Eigener Broker: Seite mit `?relay=wss://host:port/pfad` öffnen.
+
 Die Kopplung bleibt gespeichert: Nach einem Neustart verbindet sich die Fernbedienung von selbst wieder. Kamera-Handy und Fernbedienung können gleichzeitig verbunden sein. Für Grollen und Donner einen (Bluetooth-)Lautsprecher hinter die Leinwand stellen – Ton macht beim Erschrecken den größten Unterschied.
 
 ### Handy als Kamera
@@ -99,6 +101,8 @@ js/szenen/skelett.js    Skelett
 js/szenen/vogelspinne.js Vogelspinne mit Netz, Beinen per inverser Kinematik
 js/szenen/roentgen.js   Röntgenspiegel (Kamerabild + Skelett)
 js/fernbedienung.js     Fernbedienungs-Seite fürs Handy (fernbedienung.html)
+js/steuerung.js         Fernbedienung, Laptop-Seite: nimmt Befehle direkt und über das Relay an
+js/relay.js             Relay über öffentliche MQTT-Broker (MQTT.js 5.10.1, MIT)
 js/spiel/spinnenjagd.js Easter Egg
 sw.js                   Service Worker (offline)
 tools/assets_bauen.py   erzeugt die Bildebenen der Augen aus quellen/*.jpg
