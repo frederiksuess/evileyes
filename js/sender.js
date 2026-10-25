@@ -54,9 +54,17 @@ function anrufen() {
   anruf = a;
   if (!a) { spaeterNochmal(); return; }
   const pc = a.peerConnection;
+  // Hängt der Aufbau, blockiert meist das Netz die direkte Verbindung (z. B. Gast-WLAN)
+  const haengt = setTimeout(() => {
+    if (anruf === a && pc?.connectionState !== 'connected') {
+      zeige('Die direkte Verbindung kommt nicht zustande. Sind Handy und Laptop im selben WLAN (kein Gast-WLAN, Handy nicht im Mobilnetz)? Neuer Versuch läuft …', 'warnung');
+      spaeterNochmal(5000);
+    }
+  }, 15000);
   pc?.addEventListener('connectionstatechange', () => {
     if (anruf !== a) return;
     const z = pc.connectionState;
+    if (z === 'connected') clearTimeout(haengt);
     if (z === 'connected') zeige('Verbunden – das Portal sieht jetzt durch dieses Handy.', 'ok');
     if (z === 'failed' || z === 'disconnected' || z === 'closed') {
       zeige('Verbindung verloren – neuer Versuch …', 'warnung');

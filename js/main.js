@@ -14,7 +14,8 @@ import {
 } from './ui.js';
 import { vorschau } from './vorschau.js';
 import { portal, rahmen, innen, portalZeichnen } from './portal.js';
-import { fern, fernsteuerung, anFernbedienungen, empfaengerStarten, senderAdresse, qrSvg, STATUS_TEXT } from './fernkamera.js';
+import { fern, empfaengerStarten, senderAdresse, qrSvg, STATUS_TEXT, laptopKennung } from './fernkamera.js';
+import { steuerung, steuerungStarten, steuerungStatus, zustandSenden } from './steuerung.js';
 import { spiel, spielAktiv, spielVorbereiten, spielSchritt, spinneImBlick } from './spiel/spinnenjagd.js';
 import { AugenSzene } from './szenen/augen.js';
 import { SkelettSzene } from './szenen/skelett.js';
@@ -47,7 +48,7 @@ function motivWaehlen(id) {
   document.getElementById('bBlinzeln').hidden = !szene.blinzeln;
   if (ui.gestartet && !kamera.laeuft && (id === 'skelett' || id === 'roentgen')) zeige('Das Skelett folgt dir, sobald die Kamera läuft.', 3500);
   if (id === 'roentgen') zeige('Röntgenspiegel: Die Körpererkennung braucht etwas Licht auf den Gästen.', 4000);
-  anFernbedienungen({ art: 'zustand', motiv: id });
+  if (steuerung.aktiv) zustandSenden();
   // Motivknöpfe in den Einstellungen nachziehen (falls per Fernbedienung gewechselt)
   document.querySelectorAll('[data-motiv]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.motiv === id)));
   if (ui.gestartet && !kamera.laeuft && id === 'vogelspinne') zeige('Leg den Finger auf den Bildschirm – die Spinne jagt ihn.', 3500);
@@ -225,27 +226,35 @@ function fernBefehl(d) {
       break;
   }
 }
-fernsteuerung.beiBefehl = fernBefehl;
-fernsteuerung.beiVerbunden = (anzahl, neu) => {
+steuerung.beiBefehl = fernBefehl;
+steuerung.beiNeu = () => {
+  zeige('Fernbedienung verbunden', 2500);
+  const d = document.getElementById('fernDialog');
+  if (!d.hidden) setTimeout(() => { d.hidden = true; }, 1500);
+};
+steuerung.beiStatus = st => {
   const fs = document.getElementById('fdStatus');
-  fs.textContent = anzahl ? `${anzahl === 1 ? 'Eine Fernbedienung' : anzahl + ' Fernbedienungen'} verbunden` : 'Warte auf die Fernbedienung …';
-  fs.className = anzahl ? 'ok' : '';
-  if (neu) {
-    neu.send({ art: 'zustand', motiv: S.motiv });
-    if (!document.getElementById('fernDialog').hidden) setTimeout(() => { document.getElementById('fernDialog').hidden = true; }, 1200);
-    zeige('Fernbedienung verbunden', 2500);
+  if (st.anzahl) {
+    fs.textContent = `${st.anzahl === 1 ? 'Eine Fernbedienung' : st.anzahl + ' Fernbedienungen'} verbunden (${st.direkt ? 'direkt' : 'über Relay'})`;
+    fs.className = 'ok';
+  } else {
+    const wege = [];
+    wege.push(st.relay ? 'Relay bereit' : 'Relay nicht erreichbar');
+    wege.push(['wartet', 'verbunden', 'getrennt'].includes(st.vermittler) ? 'Direktweg bereit' : 'Direktweg nicht bereit');
+    fs.textContent = `Warte auf die Fernbedienung … · ${wege.join(' · ')}`;
+    fs.className = '';
   }
 };
 
 async function fernbedienungKoppeln() {
   leisteZeigen(false);
-  await empfaengerStarten();
+  laptopKennung();
+  steuerungStarten();
   const adresse = senderAdresse('fernbedienung.html');
   document.getElementById('fdAdresse').textContent = adresse;
   try { document.getElementById('fdQr').innerHTML = await qrSvg(adresse); }
   catch { document.getElementById('fdQr').hidden = true; }
-  const n = fernsteuerung.verbindungen.size;
-  fernsteuerung.beiVerbunden(n);
+  steuerung.beiStatus(steuerungStatus());
   document.getElementById('fernDialog').hidden = false;
 }
 document.getElementById('bFern').addEventListener('click', fernbedienungKoppeln);
@@ -257,7 +266,7 @@ async function starten(art, automatisch = false) {
   wachHalten();
   S.quelle = art; speichern();
   // Wurde schon einmal eine Fernbedienung gekoppelt, gleich bereit sein – sie verbindet sich von selbst
-  if (S.fernGekoppelt && art !== 'handy') empfaengerStarten();
+  if (S.fernGekoppelt) steuerungStarten();
   if (art === 'keine') {
     zeige('Mit dem Finger steuern. Zwei Finger zoomen, P passt das Portal an.', 5000);
     return;

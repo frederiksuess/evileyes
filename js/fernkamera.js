@@ -48,13 +48,19 @@ const status = s => { fern.status = s; for (const f of fern.bei) f(s); };
 
 let peer = null, anruf = null, wiederTimer = null;
 
+/** Feste, zufällige Kennung dieses Portals (für QR-Codes, WebRTC und Relay) */
+export function laptopKennung() {
+  if (!S.peerId) { S.peerId = 'feueraugen-' + zufallsId(); speichern(); }
+  return S.peerId;
+}
+
 export async function empfaengerStarten() {
   if (peer && !peer.destroyed) return;
   status('laedt');
   let Peer;
   try { Peer = await peerBibliothek(); }
   catch { status('fehler'); return; }
-  if (!S.peerId) { S.peerId = 'feueraugen-' + zufallsId(); speichern(); }
+  laptopKennung();
 
   const starten = () => {
     clearTimeout(wiederTimer);
@@ -110,9 +116,11 @@ export async function empfaengerStarten() {
 /** Adresse, die das Handy öffnen soll (Kamera oder Fernbedienung) */
 export function senderAdresse(seite = 'sender.html') {
   const u = new URL(seite, location.href);
-  const p = new URLSearchParams(location.search).get('peer');
-  u.search = p ? `?peer=${encodeURIComponent(p)}` : '';
-  u.hash = S.peerId;
+  // Test-/Eigenbetrieb-Parameter weiterreichen (eigener Vermittler bzw. Relay-Broker)
+  const hier = new URLSearchParams(location.search), weiter = new URLSearchParams();
+  for (const k of ['peer', 'relay']) if (hier.get(k)) weiter.set(k, hier.get(k));
+  u.search = weiter.toString() ? '?' + weiter : '';
+  u.hash = laptopKennung();
   return u.href;
 }
 
