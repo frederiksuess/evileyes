@@ -27,7 +27,7 @@ async function abspielen(stream, quelle) {
 
 /** Wenig Licht: lieber weniger Bilder pro Sekunde, dafür länger belichten */
 export const videoVorgaben = (extra = {}) => ({
-  width: { ideal: 1280 }, height: { ideal: 720 },
+  width: { ideal: 640 }, height: { ideal: 480 },
   frameRate: S.nachtsicht ? { ideal: 20, max: 30 } : { ideal: 30 },
   ...extra
 });

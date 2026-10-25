@@ -3,7 +3,7 @@
 import { klemm } from './util.js';
 
 const SCHLUESSEL = 'feueraugen.v2';
-export const MOTIV_IDS = ['schuppen', 'rauch', 'skelett', 'vogelspinne'];
+export const MOTIV_IDS = ['schuppen', 'rauch', 'skelett', 'roentgen', 'vogelspinne'];
 
 export const AUSLOESER = ['winken', 'peace', 'beide', 'aus'];
 
@@ -26,6 +26,7 @@ const STANDARD = {
   kameraId: '',              // gewählte Kamera dieses Geräts
   quelle: 'lokal',           // zuletzt genutzt: lokal | handy | keine (für den Autostart)
   ignorieren: [],            // Bereiche im Kamerabild ohne Erkennung: [x0, y0, x1, y1] (0..1)
+  fernGekoppelt: false,      // wurde schon einmal eine Fernbedienung verbunden? (dann beim Start bereit sein)
   peerId: '',                // feste Kennung für die Handy-Kamera
   portal: { an: false, punkte: portalOval(), weich: 0.03, glut: false },
   ansicht: Object.fromEntries(MOTIV_IDS.map(id => [id, { zoom: 1, hoehe: 0 }]))
@@ -43,6 +44,7 @@ function pruefen(roh) {
   if (AUSLOESER.includes(roh.ausloeser)) s.ausloeser = roh.ausloeser;
   if (typeof roh.kameraId === 'string') s.kameraId = roh.kameraId.slice(0, 200);
   if (['lokal', 'handy', 'keine'].includes(roh.quelle)) s.quelle = roh.quelle;
+  if (typeof roh.fernGekoppelt === 'boolean') s.fernGekoppelt = roh.fernGekoppelt;
   if (Array.isArray(roh.ignorieren)) s.ignorieren = roh.ignorieren
     .filter(r => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite)).slice(0, 12)
     .map(r => r.map(v => klemm(v, 0, 1)));

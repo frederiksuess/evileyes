@@ -1,4 +1,6 @@
-// Handy als Kamera (WebRTC).
+// Handy als Kamera und Fernbedienung (WebRTC).
+// Kamera: Das Handy ruft per Video-Anruf an. Fernbedienung: Ein zweites Handy schickt über
+// einen Datenkanal Befehle (Schreck, Blick lenken, Botschaft …).
 // Der Laptop meldet sich mit einer festen Kennung beim PeerJS-Vermittlungsserver an und zeigt
 // einen QR-Code. Das Handy öffnet sender.html, ruft den Laptop an und schickt sein Kamerabild.
 // Das Video selbst fließt direkt im WLAN von Gerät zu Gerät; der Server vermittelt nur.
@@ -34,6 +36,14 @@ export function peerOptionen() {
 const zufallsId = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(36).padStart(2, '0')).join('').slice(0, 10);
 
 export const fern = { status: 'aus', bei: new Set() };
+
+/** Fernbedienungen: eingehende Befehle -> beiBefehl(daten); beiVerbunden(anzahl) */
+export const fernsteuerung = { verbindungen: new Set(), beiBefehl: null, beiVerbunden: null };
+
+/** Nachricht an alle verbundenen Fernbedienungen (z. B. aktuelles Motiv) */
+export function anFernbedienungen(daten) {
+  for (const c of fernsteuerung.verbindungen) if (c.open) { try { c.send(daten); } catch { /* egal */ } }
+}
 const status = s => { fern.status = s; for (const f of fern.bei) f(s); };
 
 let peer = null, anruf = null, wiederTimer = null;
@@ -50,6 +60,20 @@ export async function empfaengerStarten() {
     clearTimeout(wiederTimer);
     peer = new Peer(S.peerId, peerOptionen());
     peer.on('open', () => status(anruf ? 'verbunden' : 'wartet'));
+    peer.on('connection', conn => {
+      if (conn.metadata?.rolle !== 'fernbedienung') { conn.close(); return; }
+      conn.on('open', () => {
+        fernsteuerung.verbindungen.add(conn);
+        if (!S.fernGekoppelt) { S.fernGekoppelt = true; speichern(); }
+        fernsteuerung.beiVerbunden?.(fernsteuerung.verbindungen.size, conn);
+      });
+      conn.on('data', d => fernsteuerung.beiBefehl?.(d));
+      const weg = () => {
+        if (fernsteuerung.verbindungen.delete(conn)) fernsteuerung.beiVerbunden?.(fernsteuerung.verbindungen.size);
+      };
+      conn.on('close', weg);
+      conn.on('error', weg);
+    });
     peer.on('call', neu => {
       anruf?.close();
       anruf = neu;
@@ -83,9 +107,9 @@ export async function empfaengerStarten() {
   starten();
 }
 
-/** Adresse, die das Handy öffnen soll */
-export function senderAdresse() {
-  const u = new URL('sender.html', location.href);
+/** Adresse, die das Handy öffnen soll (Kamera oder Fernbedienung) */
+export function senderAdresse(seite = 'sender.html') {
+  const u = new URL(seite, location.href);
   const p = new URLSearchParams(location.search).get('peer');
   u.search = p ? `?peer=${encodeURIComponent(p)}` : '';
   u.hash = S.peerId;

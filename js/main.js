@@ -5,7 +5,7 @@ import { bewegung, bewegungStarten, neuLernen, empfindlichkeitSetzen, aktiveSpur
 import { fokusWaehlen, wennJemandAuftaucht } from './aufmerksamkeit.js';
 import { gestenStarten } from './mediapipe.js';
 import { winkenErkennen } from './winken.js';
-import { klangFreischalten } from './audio.js';
+import { klangFreischalten, grollen, donner } from './audio.js';
 import { zeige, verstecke } from './hinweis.js';
 import { glatt, klemm } from './util.js';
 import {
@@ -14,10 +14,11 @@ import {
 } from './ui.js';
 import { vorschau } from './vorschau.js';
 import { portal, rahmen, innen, portalZeichnen } from './portal.js';
-import { fern, empfaengerStarten, senderAdresse, qrSvg, STATUS_TEXT } from './fernkamera.js';
+import { fern, fernsteuerung, anFernbedienungen, empfaengerStarten, senderAdresse, qrSvg, STATUS_TEXT } from './fernkamera.js';
 import { spiel, spielAktiv, spielVorbereiten, spielSchritt, spinneImBlick } from './spiel/spinnenjagd.js';
 import { AugenSzene } from './szenen/augen.js';
 import { SkelettSzene } from './szenen/skelett.js';
+import { RoentgenSzene } from './szenen/roentgen.js';
 import { VogelspinneSzene } from './szenen/vogelspinne.js';
 
 const buehne = document.getElementById('buehne');
@@ -31,6 +32,7 @@ async function szenenAnlegen() {
   const daten = await fetch('assets/augen/motive.json').then(r => r.json());
   for (const d of daten) szenen[d.id] = new AugenSzene(d);
   szenen.skelett = new SkelettSzene();
+  szenen.roentgen = new RoentgenSzene();
   szenen.vogelspinne = new VogelspinneSzene();
   await Promise.all(Object.values(szenen).map(s => s.laden()));
 }
@@ -43,7 +45,11 @@ function motivWaehlen(id) {
   szene.aktivieren?.();
   ansichtAnzeigen(szene.hatHoehe !== false);
   document.getElementById('bBlinzeln').hidden = !szene.blinzeln;
-  if (ui.gestartet && !kamera.laeuft && id === 'skelett') zeige('Das Skelett folgt dir, sobald die Kamera läuft.', 3500);
+  if (ui.gestartet && !kamera.laeuft && (id === 'skelett' || id === 'roentgen')) zeige('Das Skelett folgt dir, sobald die Kamera läuft.', 3500);
+  if (id === 'roentgen') zeige('Röntgenspiegel: Die Körpererkennung braucht etwas Licht auf den Gästen.', 4000);
+  anFernbedienungen({ art: 'zustand', motiv: id });
+  // Motivknöpfe in den Einstellungen nachziehen (falls per Fernbedienung gewechselt)
+  document.querySelectorAll('[data-motiv]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.motiv === id)));
   if (ui.gestartet && !kamera.laeuft && id === 'vogelspinne') zeige('Leg den Finger auf den Bildschirm – die Spinne jagt ihn.', 3500);
   speichern();
 }
@@ -80,6 +86,7 @@ function schleife(t) {
   let ziel = null, zielQuelle = null, zielNaehe = 0;
   const spielZiel = imSpiel ? spinneImBlick() : null;
   if (spielZiel) { ziel = spielZiel; zielQuelle = 'spiel'; zielNaehe = 0.15; }
+  else if (fernBlick && t - fernBlick.zeit < 2500) { ziel = [fernBlick.x * W, fernBlick.y * H]; zielQuelle = 'finger'; zielNaehe = 0.2; }
   else if (ui.finger) { ziel = ui.finger; zielQuelle = 'finger'; zielNaehe = 0.3; }
   else if (!imSpiel) {
     const fokus = fokusWaehlen(t);
@@ -105,8 +112,10 @@ function schleife(t) {
     portalVersion: portal.version
   });
   if (imSpiel) spielSchritt(ctx, t, dt, W, H, szene);
+  if (t < flackernBis) flackernZeichnen(ctx, t, W, H);
   ctx.restore();
   portalZeichnen(ctx, t);
+  if (botschaftAktiv) botschaftPlatzieren(r);
   requestAnimationFrame(schleife);
 }
 
@@ -154,11 +163,101 @@ async function handyVerbinden() {
   handyStatus(STATUS_TEXT[fern.status] || '', fern.status === 'verbunden');
 }
 
+// ---------------- Fernbedienung: Effekte ----------------
+let fernBlick = null, flackernBis = 0, flackernStart = 0;
+
+/** Blitz & Donner: einzelne grelle Blitze, dazwischen Dunkelheit */
+function flackernZeichnen(g, t, W, H) {
+  const s = (t - flackernStart) / 1000;
+  const blitze = [[0, 0.09], [0.16, 0.06], [0.42, 0.12], [0.62, 0.05], [1.15, 0.1]];
+  let hell = 0;
+  for (const [a, d] of blitze) if (s >= a && s < a + d) hell = 1 - (s - a) / d * 0.5;
+  g.fillStyle = hell ? `rgba(235,240,255,${0.85 * hell})` : 'rgba(0,0,0,0.55)';
+  g.fillRect(0, 0, W, H);
+}
+
+const botschaftEl = document.getElementById('botschaft');
+let botschaftAktiv = false, botschaftTimer = null;
+function botschaftZeigen(text) {
+  const p = botschaftEl.querySelector('p');
+  p.replaceChildren();
+  [...text].forEach((z, i) => {
+    const s = document.createElement('span');
+    s.className = 'b';
+    s.textContent = z === ' ' ? '\u00a0' : z;
+    s.style.animationDelay = `${i * 70}ms`;
+    p.append(s);
+  });
+  botschaftEl.classList.remove('weg');
+  botschaftEl.hidden = false;
+  botschaftAktiv = true;
+  clearTimeout(botschaftTimer);
+  const dauer = text.length * 70 + 7000;
+  botschaftTimer = setTimeout(() => {
+    botschaftEl.classList.add('weg');
+    botschaftTimer = setTimeout(() => { botschaftEl.hidden = true; botschaftAktiv = false; }, 1300);
+  }, dauer);
+}
+/** Botschaft mittig ins Portal legen (Gerätepixel -> CSS-Pixel) */
+function botschaftPlatzieren(r) {
+  const k = innerWidth / buehne.width;
+  Object.assign(botschaftEl.style, { left: r.x * k + 'px', top: r.y * k + 'px', width: r.w * k + 'px', height: r.h * k + 'px' });
+  const groesse = Math.max(28, Math.min(r.w * k * 0.085, r.h * k * 0.16));
+  botschaftEl.querySelector('p').style.fontSize = groesse + 'px';
+}
+
+/** Befehle der Fernbedienung – alles wird geprüft, nichts davon wird als HTML eingesetzt */
+function fernBefehl(d) {
+  if (!d || typeof d !== 'object' || typeof d.art !== 'string') return;
+  klangFreischalten();
+  switch (d.art) {
+    case 'schreck': szene.schreck?.(); grollen(); break;
+    case 'grollen': grollen(0.8); break;
+    case 'flackern': flackernStart = performance.now(); flackernBis = flackernStart + 1600; donner(); break;
+    case 'blinzeln': szene.blinzeln?.(); break;
+    case 'spiel': spielVorbereiten(); break;
+    case 'motiv': if (MOTIV_IDS.includes(d.motiv)) motivWaehlen(d.motiv); break;
+    case 'blick':
+      if (Number.isFinite(d.x) && Number.isFinite(d.y)) fernBlick = { x: klemm(d.x, 0, 1), y: klemm(d.y, 0, 1), zeit: performance.now() };
+      break;
+    case 'botschaft':
+      if (typeof d.text === 'string' && d.text.trim()) botschaftZeigen(d.text.trim().slice(0, 80));
+      break;
+  }
+}
+fernsteuerung.beiBefehl = fernBefehl;
+fernsteuerung.beiVerbunden = (anzahl, neu) => {
+  const fs = document.getElementById('fdStatus');
+  fs.textContent = anzahl ? `${anzahl === 1 ? 'Eine Fernbedienung' : anzahl + ' Fernbedienungen'} verbunden` : 'Warte auf die Fernbedienung …';
+  fs.className = anzahl ? 'ok' : '';
+  if (neu) {
+    neu.send({ art: 'zustand', motiv: S.motiv });
+    if (!document.getElementById('fernDialog').hidden) setTimeout(() => { document.getElementById('fernDialog').hidden = true; }, 1200);
+    zeige('Fernbedienung verbunden', 2500);
+  }
+};
+
+async function fernbedienungKoppeln() {
+  leisteZeigen(false);
+  await empfaengerStarten();
+  const adresse = senderAdresse('fernbedienung.html');
+  document.getElementById('fdAdresse').textContent = adresse;
+  try { document.getElementById('fdQr').innerHTML = await qrSvg(adresse); }
+  catch { document.getElementById('fdQr').hidden = true; }
+  const n = fernsteuerung.verbindungen.size;
+  fernsteuerung.beiVerbunden(n);
+  document.getElementById('fernDialog').hidden = false;
+}
+document.getElementById('bFern').addEventListener('click', fernbedienungKoppeln);
+document.getElementById('fdSchliessen').addEventListener('click', () => { document.getElementById('fernDialog').hidden = true; });
+
 // ---------------- Start ----------------
 async function starten(art, automatisch = false) {
   klangFreischalten();
   wachHalten();
   S.quelle = art; speichern();
+  // Wurde schon einmal eine Fernbedienung gekoppelt, gleich bereit sein – sie verbindet sich von selbst
+  if (S.fernGekoppelt && art !== 'handy') empfaengerStarten();
   if (art === 'keine') {
     zeige('Mit dem Finger steuern. Zwei Finger zoomen, P passt das Portal an.', 5000);
     return;
