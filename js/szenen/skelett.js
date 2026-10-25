@@ -6,7 +6,8 @@ import { zeige } from '../hinweis.js';
 import { glatt, pfad, plus, minus, mal, mitte, abst, einheit, senk } from '../util.js';
 import { zeichneFunken } from './gemeinsam.js';
 
-const KNOCHEN = '#e9dfcc', KONTUR = '#1a110a', GLUT = 'rgba(240,110,30,0.14)';
+/** Aussehen der Knochen; der Röntgenspiegel nutzt einen eigenen Stil */
+export const STIL_KNOCHEN = { knochen: '#e9dfcc', kontur: '#1a110a', glut: 'rgba(240,110,30,0.14)', glutBreite: 0.12 };
 
 // Ruhepose (normierte Bildkoordinaten, Hochformat 3:4), wenn niemand da ist
 const RUHE = [
@@ -20,46 +21,52 @@ const RUHE = [
 
 const rumpfMitte = p => [(p[22] + p[24] + p[46] + p[48]) / 4, (p[23] + p[25] + p[47] + p[49]) / 4];
 
+// Eine gemeinsame Körpererkennung für alle Szenen mit Skelett (Skelett, Röntgenspiegel)
+let pose = null, poseLaedt = false, aktiveSzene = null;
+
+async function poseStarten() {
+  if (pose || poseLaedt) return;
+  poseLaedt = true;
+  zeige('Die Körpererkennung wird geladen …', 2500);
+  try {
+    pose = await poseErzeugen(S.mehrere ? 3 : 1);
+    if (aktiveSzene) zeige('Stell dich vor das Portal – das Skelett macht alles nach.', 3500);
+    const schleife = () => {
+      try { if (aktiveSzene && bildBereit()) aktiveSzene.verarbeiten(pose.erkennen(), performance.now()); }
+      catch (e) { console.warn(e); }
+      setTimeout(schleife, 40);
+    };
+    schleife();
+  } catch (e) {
+    console.warn('Körpererkennung nicht verfügbar:', e);
+    zeige('Die Körpererkennung konnte nicht geladen werden. Dafür braucht es Internet.', 5000);
+  } finally {
+    poseLaedt = false;
+  }
+}
+
 export class SkelettSzene {
   constructor() {
     this.id = 'skelett';
     this.abdunkeln = 0.15;
     this.skelette = [];       // { p: Float32Array(66), v: Float32Array(33), w, zuletzt }
-    this.pose = null;
-    this.laedt = false;
-    this.aktiv = false;
+    this.stil = STIL_KNOCHEN;
+    this.ruhepose = true;     // wartendes Skelett zeigen, wenn niemand da ist
+    this.kieferAuf = 0;       // Schreck: Kiefer weit auf
   }
 
   async laden() { /* keine Bilddateien */ }
 
   aktivieren() {
-    this.aktiv = true;
-    if (kamera.laeuft) this.poseStarten();
+    aktiveSzene = this;
+    if (kamera.laeuft) poseStarten();
   }
-  deaktivieren() { this.aktiv = false; }
-  kameraGestartet() { if (this.aktiv) this.poseStarten(); }
-  mehrereGeaendert() { this.pose?.anzahlSetzen(S.mehrere ? 3 : 1); }
+  deaktivieren() { if (aktiveSzene === this) aktiveSzene = null; }
+  kameraGestartet() { if (aktiveSzene === this) poseStarten(); }
+  mehrereGeaendert() { pose?.anzahlSetzen(S.mehrere ? 3 : 1); }
 
-  async poseStarten() {
-    if (this.pose || this.laedt) return;
-    this.laedt = true;
-    zeige('Das Skelett wird geladen …', 2500);
-    try {
-      this.pose = await poseErzeugen(S.mehrere ? 3 : 1);
-      if (this.aktiv) zeige('Stell dich vor die Kamera – das Skelett macht alles nach.', 3500);
-      const schleife = () => {
-        try { if (this.aktiv && bildBereit()) this.verarbeiten(this.pose.erkennen(), performance.now()); }
-        catch (e) { console.warn(e); }
-        setTimeout(schleife, 40);
-      };
-      schleife();
-    } catch (e) {
-      console.warn('Körpererkennung nicht verfügbar:', e);
-      zeige('Das Skelett konnte nicht geladen werden. Dafür braucht es Internet.', 5000);
-    } finally {
-      this.laedt = false;
-    }
-  }
+  /** Fernbedienung „Schreck“: alle Kiefer klappen weit auf */
+  schreck() { this.kieferAuf = 1; }
 
   /** Neue Erkennung den bestehenden Skeletten zuordnen und glätten */
   verarbeiten(lms, jetzt) {
@@ -87,7 +94,7 @@ export class SkelettSzene {
   sichtbar() { return this.skelette.some(sk => sk.w > 0.3); }
 
   abbildung(W, H, vw, vh) {
-    const a = S.ansicht.skelett;
+    const a = S.ansicht[this.id];
     return { W, H, vw, vh, sc: Math.min(W / vw, H / vh) * 0.96 * a.zoom, hoehe: a.hoehe };
   }
   static aufSchirm(m, x, y) {
@@ -107,14 +114,20 @@ export class SkelettSzene {
     return pts;
   }
 
-  zeichne(ctx, t, dt, e) {
-    const { W, H } = e;
+  zeichneHintergrund(ctx, t, dt, W, H) {
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, W, H);
     const boden = ctx.createRadialGradient(W / 2, H * 0.95, 0, W / 2, H * 0.95, Math.max(W, H) * 0.6);
     boden.addColorStop(0, 'rgba(120,40,8,0.35)'); boden.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = boden; ctx.fillRect(0, 0, W, H);
     zeichneFunken(ctx, t, dt, W, H);
+  }
+
+  zeichne(ctx, t, dt, e) {
+    const { W, H } = e;
+    this.zeichneHintergrund(ctx, t, dt, W, H);
+    this.kieferAuf = Math.max(0, this.kieferAuf - dt * 0.8);
+    const schreckKiefer = Math.min(1, this.kieferAuf * 2) * (0.85 + 0.15 * Math.sin(t * 0.05));
 
     const jetzt = performance.now();
     for (const sk of this.skelette) sk.w = glatt(sk.w, jetzt - sk.zuletzt < 400 ? 1 : 0, dt, jetzt - sk.zuletzt < 400 ? 0.25 : 0.6);
@@ -125,15 +138,15 @@ export class SkelettSzene {
     }
 
     const maxW = this.skelette.reduce((m, sk) => Math.max(m, sk.w), 0);
-    if (maxW < 0.98) {
+    if (this.ruhepose && maxW < 0.98) {
       const m = this.abbildung(W, H, 480, 640);
-      const kiefer = Math.max(0, Math.sin(t / 1000 * 1.3)) ** 6;   // gelegentliches Klappern
-      zeichneSkelett(ctx, i => SkelettSzene.aufSchirm(m, ...ruhePunkt(i, t)), () => 1, (1 - maxW) * 0.9, t, W, kiefer);
+      const kiefer = Math.max(Math.max(0, Math.sin(t / 1000 * 1.3)) ** 6, schreckKiefer);   // gelegentliches Klappern
+      zeichneSkelett(ctx, i => SkelettSzene.aufSchirm(m, ...ruhePunkt(i, t)), () => 1, (1 - maxW) * 0.9, t, W, kiefer, this.stil);
     }
     const m = this.abbildung(W, H, ...videoGroesse());
     for (const sk of this.skelette) {
       if (sk.w < 0.02) continue;
-      zeichneSkelett(ctx, i => SkelettSzene.aufSchirm(m, sk.p[2 * i], sk.p[2 * i + 1]), i => sk.v[i], sk.w, t, W, 0);
+      zeichneSkelett(ctx, i => SkelettSzene.aufSchirm(m, sk.p[2 * i], sk.p[2 * i + 1]), i => sk.v[i], sk.w, t, W, schreckKiefer, this.stil);
     }
   }
 }
@@ -161,7 +174,8 @@ function ruhePunkt(i, t) {
 }
 
 /** Ein Skelett zeichnen. P(i) liefert Bildschirmpunkte, V(i) die Sichtbarkeit (0..1). */
-function zeichneSkelett(g, P, V, alpha, t, W, kiefer) {
+export function zeichneSkelett(g, P, V, alpha, t, W, kiefer, stil = STIL_KNOCHEN) {
+  const { knochen: KNOCHEN, kontur: KONTUR, glut: GLUT, glutBreite } = stil;
   const sicht = i => V(i) > 0.4;
   if (!sicht(11) || !sicht(12)) return;
   const L11 = P(11), L12 = P(12);
@@ -281,8 +295,8 @@ function zeichneSkelett(g, P, V, alpha, t, W, kiefer) {
   g.lineCap = 'round'; g.lineJoin = 'round';
   g.strokeStyle = GLUT;
   for (const gr of [rumpf, beine, arme]) {
-    for (const l of gr.linien) { g.lineWidth = l.w + B * 0.12; g.beginPath(); pfad(g, l.pts); g.stroke(); }
-    g.lineWidth = B * 0.12;
+    for (const l of gr.linien) { g.lineWidth = l.w + B * glutBreite; g.beginPath(); pfad(g, l.pts); g.stroke(); }
+    g.lineWidth = B * glutBreite;
     for (const f of gr.flaechen) g.stroke(f);
   }
   const malen = gr => {
@@ -296,12 +310,13 @@ function zeichneSkelett(g, P, V, alpha, t, W, kiefer) {
   };
   malen(rumpf);
   malen(beine);
-  if (kopf) zeichneSchaedel(g, P, B, o, t, kiefer);
+  if (kopf) zeichneSchaedel(g, P, B, o, t, kiefer, stil);
   malen(arme);
   g.restore();
 }
 
-function zeichneSchaedel(g, P, B, o, t, kiefer) {
+function zeichneSchaedel(g, P, B, o, t, kiefer, stil) {
+  const { knochen: KNOCHEN, kontur: KONTUR, glut: GLUT, glutBreite } = stil;
   const augen = mitte(P(2), P(5));
   let hoch = einheit(minus(augen, mitte(P(9), P(10))));
   if (!Number.isFinite(hoch[0])) hoch = [0, -1];
@@ -318,13 +333,13 @@ function zeichneSchaedel(g, P, B, o, t, kiefer) {
   gesicht.moveTo(-0.66, 0.05); gesicht.lineTo(-0.6, 0.6);
   gesicht.quadraticCurveTo(-0.5, 0.76, -0.34, 0.76); gesicht.lineTo(0.34, 0.76);
   gesicht.quadraticCurveTo(0.5, 0.76, 0.6, 0.6); gesicht.lineTo(0.66, 0.05); gesicht.closePath();
-  const kf = kiefer * 0.18;
+  const kf = kiefer * 0.3;
   const unterkiefer = new Path2D();
   unterkiefer.moveTo(-0.58, 0.64 + kf * 0.3); unterkiefer.lineTo(-0.5, 0.96 + kf);
   unterkiefer.quadraticCurveTo(0, 1.16 + kf, 0.5, 0.96 + kf); unterkiefer.lineTo(0.58, 0.64 + kf * 0.3);
   unterkiefer.lineTo(0.38, 0.8 + kf); unterkiefer.lineTo(-0.38, 0.8 + kf); unterkiefer.closePath();
 
-  g.strokeStyle = GLUT; g.lineWidth = B * 0.12 / hs;
+  g.strokeStyle = GLUT; g.lineWidth = B * glutBreite / hs;
   g.stroke(schaedel); g.stroke(unterkiefer);
   g.strokeStyle = KONTUR; g.lineWidth = 2 * lw;
   for (const pa of [unterkiefer, schaedel, gesicht]) g.stroke(pa);

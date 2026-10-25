@@ -154,6 +154,7 @@ export class VogelspinneSzene {
   verhalten(t, dt, e) {
     const s = this.s;
     let ziel = e.imSpiel ? null : e.ziel;
+    if (!ziel && this.zwangsZiel && t < this.zwangsBis) ziel = this.zwangsZiel;
     if (ziel) {
       ziel = [klemm(ziel[0], s, this.W - s), klemm(ziel[1], s, this.H - s)];
       this.letztesZiel = ziel;
@@ -180,7 +181,8 @@ export class VogelspinneSzene {
         break;
       case 'sprint':
         richtung = z ? minus(z, this.pos) : null; tempo = SPRINT; beschl = 16;
-        if (dist < s * 2.3) this.erstarren(0.35, 1.0);
+        if (dist < s * 2.3 && this.schreckDroh) { this.schreckDroh = false; this.zustand = 'drohen'; this.timer = 1.8; }
+        else if (dist < s * 2.3) this.erstarren(0.35, 1.0);
         else if (verloren) this.zurueck(t);
         break;
       case 'jagen':
@@ -242,6 +244,18 @@ export class VogelspinneSzene {
   }
 
   erstarren(a, b) { this.zustand = 'erstarren'; this.timer = zufall(a, b); }
+
+  /** Fernbedienung „Schreck“: sofort losrennen – auf das Ziel oder nach vorn unten auf die Gäste zu */
+  schreck() {
+    if (!this.beine) return;
+    this.zwangsZiel = [this.W / 2 + zufall(-0.15, 0.15) * this.W, this.H * 0.72];
+    this.zwangsBis = performance.now() + 2500;
+    this.zielZeit = performance.now();
+    this.letztesZiel = this.zwangsZiel;
+    this.zustand = 'anspannen'; this.timer = 0.12;
+    this.drohPause = 0;
+    this.schreckDroh = true;              // am Ziel sofort aufrichten
+  }
   zurueck(t) { this.zustand = 'rueckzug'; this.rueckStart = t; }
 
   /** Ruheposition eines Beins (Körpereinheiten), inkl. Ducken und Drohhaltung */

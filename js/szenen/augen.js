@@ -12,6 +12,7 @@ export class AugenSzene {
     this.pupille = 1;
     this.idle = { x: 0, y: 0 }; this.naechsterIdle = 0;
     this.blinzel = null; this.naechstesBlinzeln = performance.now() + 2500;
+    this.schreckBis = 0;       // Fernbedienung: Augen reißen auf
     this.ebene = document.createElement('canvas');
     this.lidEbene = document.createElement('canvas');
     this.ebene.width = this.lidEbene.width = daten.w;
@@ -30,6 +31,9 @@ export class AugenSzene {
     ]);
     this.IMG = { bg, maske, lidmaske, schatten, iris };
   }
+
+  /** Fernbedienung „Schreck“: Augen weit auf, glühen, Schlitz ganz schmal, Zittern */
+  schreck() { this.schreckBis = performance.now() + 1800; this.blinzel = null; }
 
   // ---------------- Blinzeln ----------------
   blinzeln(doppelt = false, verzoegerung = 0) {
@@ -182,8 +186,9 @@ export class AugenSzene {
     const k = 1 - Math.exp(-tempo * dt);
     this.ox += (zx - this.ox) * k;
     this.oy += (zy - this.oy) * k;
-    // nah: schmaler Schlitz, fern: weiter
-    this.pupille = glatt(this.pupille, 1.18 - e.naehe * 0.6, dt, 0.5);
+    // nah: schmaler Schlitz, fern: weiter; beim Schreck schlagartig ganz schmal
+    const schreck = t < this.schreckBis;
+    this.pupille = glatt(this.pupille, schreck ? 0.35 : 1.18 - e.naehe * 0.6, dt, schreck ? 0.06 : 0.5);
   }
 
   zeichne(ctx, t, dt, e) {
@@ -192,6 +197,11 @@ export class AugenSzene {
     const W = e.W, H = e.H;
     const L = this.layout(W, H);
     this.bewegen(t, dt, e, L);
+    const schreck = t < this.schreckBis;
+    if (schreck) {                               // Zittern
+      const z = Math.min(W, H) * 0.006;
+      L.dx += Math.sin(t * 0.11) * z; L.dy += Math.cos(t * 0.13) * z;
+    }
 
     // Iris-Ebene
     ectx.globalCompositeOperation = 'source-over';
@@ -202,7 +212,7 @@ export class AugenSzene {
     if (n > 1) { fx /= n; fy /= n; }
     const px = fx * M.maxX, py = fy * M.maxY;
     const flacker = 0.05 * (Math.sin(t * 0.0073) * 0.5 + Math.sin(t * 0.0131) * 0.5);
-    const gl = klemm(e.aktivitaet * 0.7 + flacker, 0, 1);
+    const gl = schreck ? 1 : klemm(e.aktivitaet * 0.7 + flacker, 0, 1);
     M.iris.forEach((ir, i) => {
       const x = ir.x + px, y = ir.y + py;
       ectx.globalCompositeOperation = 'source-over';
@@ -227,8 +237,9 @@ export class AugenSzene {
     ctx.drawImage(IMG.schatten, L.dx, L.dy, L.dw, L.dh);
 
     // Blinzeln; kommt man näher oder ist viel los, verengen sich die Augen
-    const basis = Math.min(0.45, Math.max(e.naehe * 0.42, e.aktivitaet * 0.18));
-    if (this.zeichneLider(Math.max(this.lidStand(t), basis))) ctx.drawImage(this.lidEbene, L.dx, L.dy, L.dw, L.dh);
+    const basis = schreck ? 0 : Math.min(0.45, Math.max(e.naehe * 0.42, e.aktivitaet * 0.18));
+    const lid = schreck ? 0 : Math.max(this.lidStand(t), basis);
+    if (this.zeichneLider(lid)) ctx.drawImage(this.lidEbene, L.dx, L.dy, L.dw, L.dh);
 
     // Bildränder sanft ins Schwarz auslaufen lassen
     const fw = L.dw * 0.07, fh = L.dh * 0.05;
