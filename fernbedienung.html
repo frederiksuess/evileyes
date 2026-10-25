@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<title>Feueraugen · Fernbedienung</title>
+<link rel="icon" type="image/png" href="assets/icons/favicon-32.png">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/fernbedienung.css">
+<script type="module" src="js/fernbedienung.js"></script>
+</head>
+<body class="fern">
+<main id="fernSeite">
+  <header>
+    <h1>Fernbedienung</h1>
+    <p id="fernStatus" role="status" aria-live="polite"><span class="punkt"></span><span id="fernText">Verbinde …</span></p>
+  </header>
+
+  <button class="schreck" data-befehl="schreck">Schreck!</button>
+
+  <div class="raster3">
+    <button class="aktion" data-befehl="grollen">Grollen</button>
+    <button class="aktion" data-befehl="flackern">Blitz &amp; Donner</button>
+    <button class="aktion" data-befehl="blinzeln">Blinzeln</button>
+  </div>
+
+  <section>
+    <h2>Blick lenken</h2>
+    <div id="pad" aria-label="Feld zum Lenken des Blicks"><div id="padPunkt"></div><span>Finger aufs Feld – die Kreatur schaut dorthin</span></div>
+  </section>
+
+  <section>
+    <h2>Botschaft im Portal</h2>
+    <label class="feld"><span>Name</span><input id="name" type="text" maxlength="24" autocomplete="off" placeholder="z. B. Lena"></label>
+    <div class="spalte">
+      <button class="aktion breit" data-vorlage="Ich habe auf dich gewartet, {name} …">„Ich habe auf dich gewartet, …“</button>
+      <button class="aktion breit" data-vorlage="{name} … ich sehe dich.">„… ich sehe dich.“</button>
+      <button class="aktion breit" data-vorlage="Alles Gute zum Geburtstag, {name}!">„Alles Gute zum Geburtstag, …!“</button>
+    </div>
+    <label class="feld"><span>Eigener Text</span><input id="eigen" type="text" maxlength="80" autocomplete="off" placeholder="Was soll im Portal erscheinen?"></label>
+    <button class="aktion breit" id="eigenSenden">Eigenen Text zeigen</button>
+  </section>
+
+  <section>
+    <h2>Motiv</h2>
+    <div class="raster3" id="motive">
+      <button class="aktion" data-motiv="schuppen">Schuppen</button>
+      <button class="aktion" data-motiv="rauch">Rauch</button>
+      <button class="aktion" data-motiv="vogelspinne">Vogel&shy;spinne</button>
+      <button class="aktion" data-motiv="skelett">Skelett</button>
+      <button class="aktion" data-motiv="roentgen">Röntgen</button>
+      <button class="aktion" data-befehl="spiel">Spinnen&shy;jagd</button>
+    </div>
+  </section>
+</main>
+</body>
+</html>

@@ -46,6 +46,7 @@
         <button data-motiv="schuppen" aria-pressed="false">Schuppen</button>
         <button data-motiv="rauch" aria-pressed="false">Rauch</button>
         <button data-motiv="skelett" aria-pressed="false">Skelett</button>
+        <button data-motiv="roentgen" aria-pressed="false">Röntgen</button>
         <button data-motiv="vogelspinne" aria-pressed="false">Vogelspinne</button>
       </div>
     </div>
@@ -82,6 +83,11 @@
     </div>
     <div class="zeile-unten">
       <button class="leise" id="bReset">Größe und Höhe zurücksetzen</button>
+    </div>
+
+    <h2 class="abschnitt">Party</h2>
+    <div class="reihe">
+      <button class="klein" id="bFern">Fernbedienung koppeln</button>
     </div>
 
     <h2 class="abschnitt">Verhalten</h2>
@@ -143,6 +149,21 @@
     </div>
   </div>
 </div>
+
+<!-- Fernbedienung koppeln -->
+<div id="fernDialog" hidden role="dialog" aria-labelledby="fdTitel">
+  <div class="dialog-innen">
+    <h2 id="fdTitel">Fernbedienung</h2>
+    <p>Mit deinem Handy scannen. Dann kannst du Schrecks auslösen, den Blick lenken und Botschaften ins Portal schreiben – unbemerkt aus der Tasche.</p>
+    <div id="fdQr" class="qr" aria-hidden="true"></div>
+    <p class="adresse" id="fdAdresse"></p>
+    <p id="fdStatus" role="status" aria-live="polite"></p>
+    <div class="reihe"><button class="knopf" id="fdSchliessen">Fertig</button></div>
+  </div>
+</div>
+
+<!-- Botschaft im Portal -->
+<div id="botschaft" hidden aria-live="polite"><p></p></div>
 
 <!-- Handy als Kamera -->
 <div id="handyDialog" hidden role="dialog" aria-labelledby="hdTitel">

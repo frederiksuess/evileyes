@@ -2,7 +2,7 @@
 //  - Eigene Dateien: erst Netz (damit Updates nach einem Push sofort ankommen), sonst Cache.
 //  - MediaPipe (fest gepinnte Versionen) und Modelle: erst Cache, sonst Netz.
 // Bewusst ohne feste Dateiliste – so kann beim Erweitern nichts vergessen werden.
-const CACHE = 'feueraugen-v4';
+const CACHE = 'feueraugen-v5';
 const EXTERN = ['https://cdn.jsdelivr.net/npm/@mediapipe/', 'https://storage.googleapis.com/mediapipe-models/'];
 
 self.addEventListener('install', () => self.skipWaiting());

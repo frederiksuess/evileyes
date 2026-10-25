@@ -6,6 +6,7 @@ Eine Web-App für Handy, Tablet und PC. Eine Kreatur folgt jeder Bewegung vor de
 |---|---|
 | **Schuppen / Rauch** | Feueraugen schauen dich an, blinzeln, kneifen sich zusammen, wenn du näher kommst, und ihre Schlitzpupillen werden schmal. |
 | **Skelett** | Ein Skelett macht deine Bewegungen nach (bis zu 3 Personen). |
+| **Röntgen** | Röntgenspiegel: Das Portal zeigt die Gäste selbst als geisterhaftes Röntgenbild, darüber leuchtet ihr Skelett, das jede Bewegung mitmacht. Braucht etwas Licht auf den Gästen. |
 | **Vogelspinne** | Sie lauert im Dunkeln in einer Ecke ihres Netzes. Taucht jemand auf, sprintet sie blitzschnell hinterher – in Schüben – und richtet sich drohend auf, wenn man ihr zu nahe kommt. |
 
 **Easter Egg:** Winken oder ein Peace-Zeichen in die Kamera (oder 1,6 s auf den Bildschirm drücken, außer bei der Vogelspinne) startet die *Spinnenjagd*: 30 Sekunden lang Spinnen patschen. Winken funktioniert auch im Dunkeln, das Peace-Zeichen braucht Licht.
@@ -21,6 +22,18 @@ Eine Web-App für Handy, Tablet und PC. Eine Kreatur folgt jeder Bewegung vor de
    bash tools/linux-kiosk.sh https://<name>.github.io/<repo>/
    ```
    Einmalig die Seite normal öffnen und die Kamera mit „Erlaubnis merken“ freigeben.
+
+### Fernbedienung (für die Party)
+
+Einstellungen → *Party* → *Fernbedienung koppeln*, QR-Code mit dem eigenen Handy scannen. Danach lässt sich das Portal unbemerkt aus der Tasche steuern:
+
+- **Schreck!** – die Augen reißen auf und glühen, die Vogelspinne springt nach vorn und richtet sich drohend auf, Skelette reißen die Kiefer auf; dazu ein tiefes Grollen
+- **Grollen**, **Blitz & Donner**, **Blinzeln**
+- **Blick lenken** – Finger aufs Feld, die Kreatur schaut (bzw. die Spinne läuft) dorthin, z. B. zum Geburtstagskind
+- **Botschaft** – Name eingeben und z. B. „Ich habe auf dich gewartet, Lena …“ erscheint in Flammenschrift im Portal; auch eigener Text
+- **Motiv** wechseln und die **Spinnenjagd** starten
+
+Die Kopplung bleibt gespeichert: Nach einem Neustart verbindet sich die Fernbedienung von selbst wieder. Kamera-Handy und Fernbedienung können gleichzeitig verbunden sein. Für Grollen und Donner einen (Bluetooth-)Lautsprecher hinter die Leinwand stellen – Ton macht beim Erschrecken den größten Unterschied.
 
 ### Handy als Kamera
 
@@ -84,6 +97,8 @@ js/hinweis.js, audio.js Meldungen, synthetische Klänge
 js/szenen/augen.js      Feueraugen (Iris, Pupille, Lider)
 js/szenen/skelett.js    Skelett
 js/szenen/vogelspinne.js Vogelspinne mit Netz, Beinen per inverser Kinematik
+js/szenen/roentgen.js   Röntgenspiegel (Kamerabild + Skelett)
+js/fernbedienung.js     Fernbedienungs-Seite fürs Handy (fernbedienung.html)
 js/spiel/spinnenjagd.js Easter Egg
 sw.js                   Service Worker (offline)
 tools/assets_bauen.py   erzeugt die Bildebenen der Augen aus quellen/*.jpg
